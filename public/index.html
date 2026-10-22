@@ -301,6 +301,15 @@
       });
       const target = document.getElementById(screenId);
       if (target) target.classList.remove('hidden');
+
+      const bottomNav = document.getElementById('customerBottomNav');
+      if (bottomNav) {
+        if (screenId === 'screenCustomerHome') {
+          bottomNav.classList.remove('hidden');
+        } else {
+          bottomNav.classList.add('hidden');
+        }
+      }
     }
 
     setInterval(() => {
@@ -1024,7 +1033,7 @@
 
   
         <!-- BOTTOM NAVIGATION BAR (CỐ ĐỊNH DƯỚI ĐÁY CHO MOBILE) -->
-    <div id="customerBottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 shadow-lg">
+    <div id="customerBottomNav" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 shadow-lg">
       <div class="max-w-md mx-auto flex items-center justify-around">
         <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition">
           <i class="fa-solid fa-ticket text-lg"></i>
