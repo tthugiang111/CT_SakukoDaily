@@ -183,9 +183,38 @@
       <!-- ============================================ -->
       <!-- SCREEN 4: TRANG CHỦ / VOUCHER DASHBOARD      -->
       <!-- ============================================ -->
-      <div id="screenCustomerHome" class="hidden space-y-4 pb-20">
+      <div id="screenCustomerHome" class="hidden space-y-4 pb-24">
 
-        
+        <!-- TAB 1: 10 LƯỢT ƯU ĐÃI & THẺ HIỆN TẠI -->
+        <div id="custTabContent-home" class="space-y-4">
+          <!-- THẺ THÀNH VIÊN VIRTUAL SAKUKO DAILY (SANG TRỌNG) -->
+        <div id="cardSection" class="rounded-3xl p-5 sakuko-card-bg text-white shadow-xl relative overflow-hidden">
+          <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/20">
+                  SAKUKO DAILY
+                </span>
+                <span class="text-[10px] text-rose-200 font-medium">CVS Xuân Thủy</span>
+              </div>
+              <h2 id="cardProgramName" class="text-base font-bold mt-1.5 text-white">Thẻ Ưu Đãi 10 Lượt</h2>
+            </div>
+            <span id="cardStatusBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm">
+              Đang hoạt động
+            </span>
+          </div>
+
+          <!-- Thanh tiến độ -->
+          <div class="bg-black/25 rounded-2xl p-3 mb-3.5 backdrop-blur-sm border border-white/10">
+            <div class="flex justify-between text-xs font-medium mb-1.5">
+              <span class="text-rose-100">Tiến độ sử dụng</span>
+              <span id="cardProgressText" class="font-extrabold text-amber-300">0 / 10 lượt</span>
+            </div>
+            <div class="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
+              <div id="cardProgressBar" class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
           </div>
 
           <!-- Lưới 10 ô tem tích điểm phong cách Sakuko -->
@@ -194,41 +223,67 @@
           </div>
         </div>
 
-        <!-- TRƯỜNG HỢP CHƯA CÓ THẺ HOẶC HẾT LƯỢT -->
-        
-        <!-- DANH SÁCH CHƯƠNG TRÌNH & THỂ LỆ THẺ NBT -->
-        <div id="programsSection" class="sakuko-light-card p-5 rounded-3xl space-y-4 border border-slate-200">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div class="flex items-center space-x-2">
-              <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
-                <i class="fa-solid fa-tags"></i>
-              </div>
-              <div>
-                <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Chương Trình Ưu Đãi Mở Bán</h3>
-                <span class="text-[10px] text-slate-500 font-medium">Chọn chương trình để xem thể lệ và mua thẻ</span>
+          <!-- DANH SÁCH CHƯƠNG TRÌNH & THỂ LỆ THẺ NBT -->
+          <div id="programsSection" class="sakuko-light-card p-5 rounded-3xl space-y-4 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                  <i class="fa-solid fa-tags"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Chương Trình Ưu Đãi Mở Bán</h3>
+                  <span class="text-[10px] text-slate-500 font-medium">Xem thể lệ và quyền lợi thẻ ưu đãi</span>
+                </div>
               </div>
             </div>
+            <div id="customerProgramsList" class="space-y-3">
+              <!-- Render JS -->
+            </div>
           </div>
-          <div id="customerProgramsList" class="space-y-3">
-            <!-- Render JS -->
+        </div> <!-- Kết thúc custTabContent-home -->
+
+        <!-- TAB 2: LỊCH SỬ ÁP DỤNG ƯU ĐÃI & ĐƠN HÀNG -->
+        <div id="custTabContent-history" class="hidden space-y-4">
+          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Lịch Sử Sử Dụng Ưu Đãi</h3>
+                  <span class="text-[10px] text-slate-500 font-medium">Chi tiết ngày giờ áp dụng voucher tại quầy</span>
+                </div>
+              </div>
+            </div>
+            <div id="historyListContainer" class="space-y-2.5">
+              <!-- Render JS -->
+            </div>
           </div>
         </div>
 
-        <div id="noCardSection" class="hidden sakuko-light-card p-6 rounded-3xl text-center space-y-4">
-          <div class="w-16 h-16 mx-auto rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center text-3xl shadow-sm">
-            <i class="fa-solid fa-gift"></i>
+        <!-- TAB 3: VÍ THẺ CỦA TÔI (QUẢN LÝ CÁC THẺ ĐÃ MUA) -->
+        <div id="custTabContent-wallet" class="hidden space-y-4">
+          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                  <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Ví Thẻ Sakuko Daily</h3>
+                  <span class="text-[10px] text-slate-500 font-medium">Toàn bộ thẻ ảo đã kích hoạt theo SĐT</span>
+                </div>
+              </div>
+            </div>
+            <div id="walletCardsContainer" class="space-y-3">
+              <!-- Render JS -->
+            </div>
           </div>
-          <div>
-            <h3 class="text-base font-bold text-slate-900">Kích Hoạt Thẻ Sakuko Daily</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Chỉ 10.000đ để nhận ngay gói voucher tiết kiệm tới 60.000đ cho 10 lần mua sắm!</p>
-          </div>
-          <button onclick="handleBuyCard()"
-            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-rose-500/25 active:scale-[0.98] transition">
-            <i class="fa-solid fa-cart-shopping mr-1.5"></i> Mua Thẻ Ngay (10.000đ)
-          </button>
         </div>
 
-        </div>
+      </div> <!-- Kết thúc screenCustomerHome -->
+
     </main>
 
   </div>
@@ -916,98 +971,7 @@
 
 
   
-        </div> <!-- End custTabContent-home -->
-
-        <!-- TAB 2: LỊCH SỬ ÁP DỤNG ƯU ĐÃI & ĐƠN HÀNG -->
-        <div id="custTabContent-history" class="hidden space-y-4">
-          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                </div>
-                <div>
-                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Lịch Sử Sử Dụng Ưu Đãi</h3>
-                  <span class="text-[10px] text-slate-500 font-medium">Chi tiết ngày giờ áp dụng voucher tại quầy</span>
-                </div>
-              </div>
-            </div>
-            <div id="historyListContainer" class="space-y-2.5">
-              <!-- Render JS -->
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 3: VÍ THẺ CỦA TÔI (QUẢN LÝ CÁC THẺ ĐÃ MUA) -->
-        <div id="custTabContent-wallet" class="hidden space-y-4">
-          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
-                  <i class="fa-solid fa-wallet"></i>
-                </div>
-                <div>
-                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Ví Thẻ Sakuko Daily</h3>
-                  <span class="text-[10px] text-slate-500 font-medium">Toàn bộ thẻ ảo đã kích hoạt theo SĐT</span>
-                </div>
-              </div>
-            </div>
-            <div id="walletCardsContainer" class="space-y-3">
-              <!-- Render JS -->
-            </div>
-          </div>
-        </div>
-
-  <!-- MODAL CHI TIẾT VOUCHER BARCODE KHI ẤN VÀO LƯỢT HỢP LỆ -->
-  <div id="voucherModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div class="text-left">
-          <span id="voucherModalStepBadge" class="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">LƯỢT #1</span>
-          <h3 id="voucherModalDiscountText" class="text-sm font-black text-slate-900 mt-1">Giảm 5.000đ (Đơn từ 20.000đ)</h3>
-        </div>
-        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-
-      <!-- Khung Barcode & Thời hạn -->
-      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-        <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
-          <span id="voucherModalDateStr">Ngày: --/--/----</span>
-          <span id="voucherModalCountdown" class="text-rose-600 font-mono font-bold">Còn --h--m</span>
-        </div>
-
-        <div class="font-mono text-xl font-black text-slate-900 tracking-widest pt-1" id="voucherModalCodeText">DAILY5K-01</div>
-        <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
-          <svg id="voucherModalBarcodeSvg" class="w-full max-h-20"></svg>
-        </div>
-      </div>
-
-      <!-- Thông tin xác thực chống gian lận -->
-      <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-left space-y-1">
-        <div class="flex items-center text-amber-800 text-xs font-bold">
-          <i class="fa-solid fa-clock mr-1.5 text-amber-600"></i> Quy tắc áp dụng:
-        </div>
-        <p class="text-[11px] text-amber-900 font-medium">
-          • Mỗi ngày chỉ dùng được <b>1 lần duy nhất</b> cho đơn hàng đầu tiên.<br/>
-          • Đưa mã Barcode này cho thu ngân quét tại quầy khi thanh toán.
-        </p>
-      </div>
-
-      <div class="space-y-2 pt-1">
-        <!-- Nút test quét voucher tại quầy -->
-        <button onclick="simulateRedeemCurrent()"
-          class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center">
-          <i class="fa-solid fa-qrcode mr-1.5 text-rose-500"></i> [Giả Lập Test] Thu Ngân Quét Áp Voucher
-        </button>
-        <button onclick="closeVoucherModal()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm">
-          Đóng
-        </button>
-      </div>
-    </div>
-  </div>
-
-
-    <!-- BOTTOM NAVIGATION BAR (CỐ ĐỊNH DƯỚI ĐÁY CHO MOBILE) -->
+        <!-- BOTTOM NAVIGATION BAR (CỐ ĐỊNH DƯỚI ĐÁY CHO MOBILE) -->
     <div id="customerBottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 shadow-lg">
       <div class="max-w-md mx-auto flex items-center justify-around">
         <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition">
