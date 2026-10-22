@@ -145,15 +145,24 @@ app.post('/api/auth/login-or-register', async (req, res) => {
           [phone, pinHash, recHash]
         );
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sakuko_nbt_secret_key_2026';
+        const token = jwt.sign({ id: newCust.rows[0].id, phone, role: 'customer' }, JWT_SECRET, { expiresIn: '90d' });
         res.cookie('nbt_token', token, { httpOnly: true, maxAge: 90 * 24 * 3600 * 1000 });
+
+        // Tự động kích hoạt thẻ ảo 10 lượt ngay lập tức cho khách mới (Lượt #1 mở dùng luôn hôm nay)
+        const progRes = await client.query("SELECT * FROM programs WHERE status = 'active' ORDER BY id DESC LIMIT 1");
+        const progId = progRes.rows.length > 0 ? progRes.rows[0].id : 1;
+        await client.query(
+          `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no, created_at)
+           VALUES ($1, $2, 'XT', CURRENT_DATE, 'active', 0, $3, NOW() - INTERVAL '1 day')`,
+          [newCust.rows[0].id, progId, 'REG_' + Math.floor(Math.random() * 899999 + 100000)]
+        );
 
         return res.json({
           ok: true,
           isNew: true,
           token,
           recoveryCode,
-          message: 'Đăng ký thành công! Hãy lưu lại mã khôi phục của bạn.'
+          message: 'Đăng ký thành công! Bạn hãy lưu lại Mã bảo mật để khôi phục mật khẩu khi cần.'
         });
       }
 
