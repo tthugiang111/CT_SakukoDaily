@@ -593,12 +593,11 @@
       grid.innerHTML = '';
 
       const usesCount = Number(card.uses_count || 0);
-      const isWaitFirstDay = new Date() < new Date(card.usable_from);
       const activeStep = usesCount + 1; // Lượt kế tiếp cần dùng
 
       for (let i = 1; i <= 10; i++) {
         const isUsed = i <= usesCount;
-        const isCurrentActive = (i === activeStep) && !isWaitFirstDay && !usedToday;
+        const isCurrentActive = (i === activeStep);
         const isBig = (i === 5 || i === 10);
         const discountLabel = isBig ? '10K' : '5K';
 
@@ -620,12 +619,10 @@
           `;
           btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
         } else {
-          // Các lượt còn lại (đang chờ ngày mai hoặc lượt tiếp): Vẫn cho bấm vào để xem voucher và test quét
-          const subText = (i === activeStep && usedToday) ? 'Hôm nay' : (i === activeStep && isWaitFirstDay) ? 'Mai mở' : discountLabel;
           btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/90 border border-white/20 hover:bg-white/30 active:scale-95 transition cursor-pointer';
           btn.innerHTML = `
             <span>#${i}</span>
-            <span class="text-[9px] text-amber-200 font-extrabold">${subText}</span>
+            <span class="text-[9px] text-amber-200 font-extrabold">${discountLabel}</span>
           `;
           btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
         }
