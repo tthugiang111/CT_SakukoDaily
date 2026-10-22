@@ -665,6 +665,13 @@
       if (targetEl) targetEl.classList.remove('hidden');
       if (targetNav) targetNav.classList.add('active');
       if (viewName === 'audit') loadAuditLogs();
+      if (viewName === 'customers') {
+        if (detailedData && detailedData.customers) {
+          renderAllCustomers(detailedData.customers);
+        } else {
+          loadAllAdminData();
+        }
+      }
     }
 
     async function checkAuth() {
