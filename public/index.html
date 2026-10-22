@@ -8,6 +8,25 @@
   <meta name="theme-color" content="#ffffff">
   <title>Sakuko Daily - Thẻ Khách Hàng Thân Thiết</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#10285B',
+              'navy-light': '#1C3A7A',
+              pink: '#E0376F',
+              'pink-hover': '#C82B5F',
+              cream: '#FEF4E4',
+              mint: '#C6E2DB',
+              gray: '#EDEDEE'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -26,16 +45,28 @@
     input, button, select, textarea {
       font-size: 16px !important;
     }
+    /* Sakuko Brand Identity 2026 */
     .sakuko-primary-gradient {
-      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+      background: linear-gradient(135deg, #E0376F 0%, #C82B5F 100%);
+    }
+    .sakuko-navy-gradient {
+      background: linear-gradient(135deg, #10285B 0%, #1C3A7A 100%);
     }
     .sakuko-card-bg {
-      background: linear-gradient(135deg, #be123c 0%, #881337 100%);
+      background: linear-gradient(135deg, #10285B 0%, #193875 55%, #E0376F 100%);
     }
     .sakuko-light-card {
       background: #ffffff;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+      border: 1px solid #EDEDEE;
+      box-shadow: 0 4px 20px -2px rgba(16, 40, 91, 0.06);
+    }
+    .sakuko-cream-card {
+      background: #FEF4E4;
+      border: 1px solid #F5E3C8;
+    }
+    .sakuko-mint-badge {
+      background: #C6E2DB;
+      color: #0F3D34;
     }
   </style>
 </head>
@@ -47,15 +78,15 @@
     <!-- Top Header Thương Hiệu Sakuko Daily -->
     <header class="p-3.5 bg-white/95 sticky top-0 z-30 border-b border-slate-100 flex items-center justify-between backdrop-blur-md">
       <div class="flex items-center space-x-2.5">
-        <div class="w-9 h-9 rounded-xl sakuko-primary-gradient flex items-center justify-center font-black text-white text-base shadow-sm">
-          S
+        <div class="w-9 h-9 rounded-xl sakuko-navy-gradient flex items-center justify-center font-black text-white text-base shadow-sm border border-brand-pink/30">
+          <span class="text-[#E0376F] font-black">S</span>
         </div>
         <div>
-          <div class="flex items-center space-x-1">
-            <h1 class="text-sm font-extrabold text-slate-900 tracking-tight">SAKUKO</h1>
-            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-600 uppercase">Daily</span>
+          <div class="flex items-center space-x-1.5">
+            <h1 class="text-sm font-black text-brand-navy tracking-tight">SAKUKO</h1>
+            <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FEF4E4] text-[#E0376F] uppercase border border-[#E0376F]/20">Daily</span>
           </div>
-          <p class="text-[10px] text-slate-500 font-medium">Thẻ Ưu Đãi Tiết Kiệm 10 Lượt</p>
+          <p class="text-[10px] text-slate-500 font-medium">CVS Xuân Thủy · Thẻ Ưu Đãi 10 Lượt</p>
         </div>
       </div>
       <div id="headerUserActions" class="flex items-center space-x-2">
@@ -71,7 +102,7 @@
       <!-- ============================================ -->
       <div id="screenAuth" class="space-y-6 pt-4">
         <div class="text-center space-y-1">
-          <div class="w-16 h-16 mx-auto rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl shadow-sm mb-3">
+          <div class="w-16 h-16 mx-auto rounded-3xl bg-[#FEF4E4] text-[#E0376F] flex items-center justify-center text-2xl shadow-sm mb-3">
             <i class="fa-solid fa-gem"></i>
           </div>
           <h2 class="text-xl font-bold text-slate-900">Thẻ Thành Viên Sakuko Daily</h2>
@@ -86,7 +117,7 @@
                 <i class="fa-solid fa-phone"></i>
               </span>
               <input type="tel" id="authPhone" placeholder="0981234567" maxlength="10"
-                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-rose-500 focus:bg-white transition">
+                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-[#E0376F] focus:bg-white transition">
             </div>
           </div>
 
@@ -97,18 +128,18 @@
                 <i class="fa-solid fa-lock"></i>
               </span>
               <input type="password" id="authPin" placeholder="••••••" maxlength="6" inputmode="numeric"
-                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-rose-500 focus:bg-white transition">
+                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-[#E0376F] focus:bg-white transition">
             </div>
             <p class="text-[11px] text-slate-400 mt-1">Khách mới chưa có tài khoản sẽ tự động được khởi tạo với PIN này.</p>
           </div>
 
           <button onclick="handleLoginOrRegister()"
-            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-rose-500/25 active:scale-[0.98] transition">
+            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-[#E0376F]/25 active:scale-[0.98] transition">
             Tiếp Tục Đăng Nhập
           </button>
 
           <div class="text-center pt-1">
-            <button onclick="showScreen('screenForgotPin')" class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+            <button onclick="showScreen('screenForgotPin')" class="text-xs font-semibold text-[#E0376F] hover:text-[#C82B5F]">
               Quên mã PIN? Bấm vào đây để đổi
             </button>
           </div>
@@ -154,17 +185,17 @@
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Số điện thoại</label>
             <input type="tel" id="recPhone" placeholder="0981234567" maxlength="10"
-              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-rose-500">
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-[#E0376F]">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Mã khôi phục bí mật</label>
             <input type="text" id="recCode" placeholder="Ví dụ: X9K2LM8P"
-              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-mono uppercase focus:outline-none focus:border-rose-500">
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-mono uppercase focus:outline-none focus:border-[#E0376F]">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Mã PIN 6 số mới</label>
             <input type="password" id="recNewPin" placeholder="••••••" maxlength="6" inputmode="numeric"
-              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-rose-500">
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-[#E0376F]">
           </div>
 
           <button onclick="handleResetPinByRecovery()"
@@ -197,7 +228,7 @@
                 <span class="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/20">
                   SAKUKO DAILY
                 </span>
-                <span class="text-[10px] text-rose-200 font-medium">CVS Xuân Thủy</span>
+                <span class="text-[10px] text-[#FEF4E4] font-medium">CVS Xuân Thủy</span>
               </div>
               <h2 id="cardProgramName" class="text-base font-bold mt-1.5 text-white">Thẻ Ưu Đãi 10 Lượt</h2>
             </div>
@@ -209,7 +240,7 @@
           <!-- Thanh tiến độ -->
           <div class="bg-black/25 rounded-2xl p-3 mb-3.5 backdrop-blur-sm border border-white/10">
             <div class="flex justify-between text-xs font-medium mb-1.5">
-              <span class="text-rose-100">Tiến độ sử dụng</span>
+              <span class="text-[#FEF4E4]">Tiến độ sử dụng</span>
               <span id="cardProgressText" class="font-extrabold text-amber-300">0 / 10 lượt</span>
             </div>
             <div class="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
@@ -227,7 +258,7 @@
           <div id="programsSection" class="sakuko-light-card p-5 rounded-3xl space-y-4 border border-slate-200">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                <div class="w-7 h-7 rounded-xl bg-[#FEF4E4] text-[#E0376F] flex items-center justify-center text-xs font-bold">
                   <i class="fa-solid fa-tags"></i>
                 </div>
                 <div>
@@ -247,7 +278,7 @@
           <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                <div class="w-7 h-7 rounded-xl bg-[#FEF4E4] text-[#E0376F] flex items-center justify-center text-xs font-bold">
                   <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
                 <div>
@@ -267,7 +298,7 @@
           <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <div class="flex items-center space-x-2">
-                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                <div class="w-7 h-7 rounded-xl bg-[#FEF4E4] text-[#E0376F] flex items-center justify-center text-xs font-bold">
                   <i class="fa-solid fa-wallet"></i>
                 </div>
                 <div>
@@ -391,7 +422,7 @@
 
         document.getElementById('headerUserActions').innerHTML = `
           <span class="text-xs font-mono text-slate-700 font-bold bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">${currentCustomer.phone}</span>
-          <button onclick="handleLogout()" class="text-slate-400 hover:text-rose-600 text-xs p-1" title="Đăng xuất">
+          <button onclick="handleLogout()" class="text-slate-400 hover:text-[#E0376F] text-xs p-1" title="Đăng xuất">
             <i class="fa-solid fa-right-from-bracket"></i>
           </button>
         `;
@@ -443,16 +474,16 @@
           if (isDone) {
             statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Đã dùng</span>';
           } else if (isCurrent) {
-            statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 animate-pulse">Lượt tiếp theo</span>';
+            statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-[#C82B5F] animate-pulse">Lượt tiếp theo</span>';
           } else {
             statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-medium text-slate-400 bg-slate-100">Chưa mở</span>';
           }
 
           const tr = document.createElement('tr');
-          tr.className = isCurrent ? 'bg-rose-50/50 font-bold' : 'hover:bg-slate-50';
+          tr.className = isCurrent ? 'bg-[#FEF4E4]/50 font-bold' : 'hover:bg-slate-50';
           tr.innerHTML = `
-            <td class="py-2 font-mono ${isBig ? 'text-rose-600 font-bold' : 'text-slate-800'}">Lượt #${i}</td>
-            <td class="py-2 font-bold ${isBig ? 'text-rose-600' : 'text-slate-900'}">${discountStr}</td>
+            <td class="py-2 font-mono ${isBig ? 'text-[#E0376F] font-bold' : 'text-slate-800'}">Lượt #${i}</td>
+            <td class="py-2 font-bold ${isBig ? 'text-[#E0376F]' : 'text-slate-900'}">${discountStr}</td>
             <td class="py-2 text-slate-500">Từ 20.000đ</td>
             <td class="py-2 text-right">${statusBadge}</td>
           `;
@@ -693,7 +724,7 @@
         const content = document.getElementById('custTabContent-' + t);
         if (btn) {
           if (t === tabName) {
-            btn.className = 'flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition';
+            btn.className = 'flex flex-col items-center py-1 px-3 text-[#E0376F] font-bold transition';
           } else {
             btn.className = 'flex flex-col items-center py-1 px-3 text-slate-400 font-semibold hover:text-slate-700 transition';
           }
@@ -757,7 +788,7 @@
           container.appendChild(div);
         });
       } catch (e) {
-        container.innerHTML = '<p class="text-xs text-rose-500 text-center py-3">Lỗi tải lịch sử ưu đãi</p>';
+        container.innerHTML = '<p class="text-xs text-[#E0376F] text-center py-3">Lỗi tải lịch sử ưu đãi</p>';
       }
     }
 
@@ -789,7 +820,7 @@
             ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Đang hoạt động</span>'
             : isUsedUp 
               ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">Đã dùng hết 10 lượt</span>'
-              : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Hết hạn</span>';
+              : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-[#C82B5F]">Hết hạn</span>';
 
           const div = document.createElement('div');
           div.className = 'p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg space-y-3';
@@ -822,7 +853,7 @@
           container.appendChild(div);
         });
       } catch (e) {
-        container.innerHTML = '<p class="text-xs text-rose-500 text-center py-3">Lỗi tải ví thẻ</p>';
+        container.innerHTML = '<p class="text-xs text-[#E0376F] text-center py-3">Lỗi tải ví thẻ</p>';
       }
     }
 
@@ -866,7 +897,7 @@
           <div onclick="toggleProgramAccordion(${p.id})" class="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-100/70 transition">
             <div class="space-y-0.5 pr-2">
               <div class="flex items-center space-x-2">
-                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${hasActiveCard ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'}">
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${hasActiveCard ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-[#C82B5F]'}">
                   ${hasActiveCard ? 'Đang Sử Dụng' : 'Đang Mở Bán'}
                 </span>
                 <span class="text-xs font-bold text-slate-900">${p.name}</span>
@@ -874,7 +905,7 @@
               <p class="text-[11px] text-slate-500">${hasActiveCard ? 'Bấm để xem lại thể lệ chương trình' : 'Bấm để xem chi tiết thể lệ & mua thẻ'}</p>
             </div>
             <div class="flex items-center space-x-2">
-              <span class="text-xs font-black text-rose-600 font-mono">${cardPriceFormatted}</span>
+              <span class="text-xs font-black text-[#E0376F] font-mono">${cardPriceFormatted}</span>
               <i id="programIcon-${p.id}" class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
             </div>
           </div>
@@ -883,7 +914,7 @@
           <div id="programDetail-${p.id}" class="hidden p-3.5 pt-0 space-y-3 border-t border-slate-200/60 bg-white">
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1 mt-2.5">
               <div class="font-bold text-slate-800 text-xs mb-1 flex items-center">
-                <i class="fa-solid fa-circle-info text-rose-500 mr-1.5"></i> Thể lệ chương trình:
+                <i class="fa-solid fa-circle-info text-[#E0376F] mr-1.5"></i> Thể lệ chương trình:
               </div>
               <p>• <b>Gói ưu đãi:</b> 10 lần mua hàng (Lượt 1–4 & 6–9 giảm 5.000đ; Lượt 5 & 10 giảm 10.000đ).</p>
               <p>• <b>Đơn tối thiểu:</b> Từ ${aovMinFormatted} sau khi trừ các khuyến mãi khác.</p>
@@ -896,7 +927,7 @@
                 ? `<div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center shadow-sm">
                     <i class="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> Bạn đang sở hữu thẻ này (Còn ${remainingUses} lượt ưu đãi)
                   </div>`
-                : `<button onclick="handleBuyCard(${p.id})" class="w-full py-2.5 rounded-xl sakuko-primary-gradient text-white font-bold text-xs shadow-md shadow-rose-500/20 active:scale-[0.98] transition flex items-center justify-center">
+                : `<button onclick="handleBuyCard(${p.id})" class="w-full py-2.5 rounded-xl sakuko-primary-gradient text-white font-bold text-xs shadow-md shadow-[#E0376F]/20 active:scale-[0.98] transition flex items-center justify-center">
                     <i class="fa-solid fa-cart-shopping mr-1.5"></i> Mua Thẻ Ngay (${cardPriceFormatted})
                   </button>`
               }
@@ -920,7 +951,7 @@
           <p class="text-[10px] text-slate-500">Ưu đãi đồng loạt từng điểm bán</p>
         </div>
         <a href="https://sakukodaily.com.vn/blogs/news" target="_blank" rel="noopener noreferrer"
-          class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-rose-600 font-bold text-[11px] border border-rose-200 shadow-sm transition flex items-center shrink-0">
+          class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-[#E0376F] font-bold text-[11px] border border-[#E0376F]/30 shadow-sm transition flex items-center shrink-0">
           Xem Ngay <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px]"></i>
         </a>
       `;
@@ -937,10 +968,10 @@
   
   <!-- MODAL CHI TIẾT VOUCHER BARCODE KHI ẤN VÀO LƯỢT HỢP LỆ -->
   <div id="voucherModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
+    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-[#E0376F]/30">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="text-left">
-          <span id="voucherModalStepBadge" class="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">LƯỢT #1</span>
+          <span id="voucherModalStepBadge" class="text-[10px] font-black uppercase tracking-wider text-[#E0376F] bg-[#FEF4E4] px-2 py-0.5 rounded-full">LƯỢT #1</span>
           <h3 id="voucherModalDiscountText" class="text-sm font-black text-slate-900 mt-1">Giảm 5.000đ (Đơn từ 20.000đ)</h3>
         </div>
         <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
@@ -950,7 +981,7 @@
       <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
         <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
           <span id="voucherModalDateStr">Ngày: --/--/----</span>
-          <span id="voucherModalCountdown" class="text-rose-600 font-mono font-bold">Còn --h--m</span>
+          <span id="voucherModalCountdown" class="text-[#E0376F] font-mono font-bold">Còn --h--m</span>
         </div>
 
         <div class="font-mono text-xl font-black text-slate-900 tracking-widest pt-1" id="voucherModalCodeText">DAILY5K-01</div>
@@ -983,7 +1014,7 @@
   </div>
 
   <div id="buyCardModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
+    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-[#E0376F]/30">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="text-left">
           <h3 class="text-sm font-black text-slate-900 uppercase tracking-tight">Thanh Toán Mua Thẻ</h3>
@@ -1012,8 +1043,8 @@
       </div>
 
       <!-- Trạng thái chờ POS quét -->
-      <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-100 flex items-center justify-center space-x-2.5 text-rose-700 text-xs font-semibold">
-        <i class="fa-solid fa-circle-notch fa-spin text-sm text-rose-600"></i>
+      <div class="p-3 rounded-2xl bg-[#FEF4E4]/60 border border-rose-100 flex items-center justify-center space-x-2.5 text-[#C82B5F] text-xs font-semibold">
+        <i class="fa-solid fa-circle-notch fa-spin text-sm text-[#E0376F]"></i>
         <span>Đang chờ thu ngân thanh toán tại quầy...</span>
       </div>
 
@@ -1035,7 +1066,7 @@
         <!-- BOTTOM NAVIGATION BAR (CỐ ĐỊNH DƯỚI ĐÁY CHO MOBILE) -->
     <div id="customerBottomNav" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 shadow-lg">
       <div class="max-w-md mx-auto flex items-center justify-around">
-        <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition">
+        <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex flex-col items-center py-1 px-3 text-[#E0376F] font-bold transition">
           <i class="fa-solid fa-ticket text-lg"></i>
           <span class="text-[10px] mt-0.5">10 Lượt</span>
         </button>
