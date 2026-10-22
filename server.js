@@ -645,6 +645,26 @@ app.post('/api/admin/approve-pin-reset', adminAuth, async (req, res) => {
 // ==========================================
 
 // Báo cáo vận hành chuyên sâu cho PC
+
+// API LẤY LỊCH SỬ HOẠT ĐỘNG / TRUY CẬP / CẬP NHẬT HỆ THỐNG
+app.get('/api/admin/audit-logs', adminAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const limit = Math.min(Number(req.query.limit || 50), 100);
+    const logs = await client.query(
+      `SELECT id, actor, action, target, detail, created_at 
+       FROM the_nbt.audit_log 
+       ORDER BY id DESC LIMIT $1`,
+      [limit]
+    );
+    return res.json({ ok: true, logs: logs.rows });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Lỗi tải nhật ký hoạt động' });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/admin/detailed-reports', adminAuth, async (req, res) => {
   try {
     const client = await pool.connect();

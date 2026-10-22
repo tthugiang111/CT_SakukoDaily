@@ -108,6 +108,10 @@
           <span>Extension & Máy POS</span>
         </button>
         <button onclick="switchView('roles')" id="nav-roles" class="sidebar-link w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-users-gear w-4 text-center text-purple-600"></i><span>Phân Quyền Vai Trò (RBAC)</span></button>
+        <button onclick="switchView('audit')" id="nav-audit" class="sidebar-link w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
+          <i class="fa-solid fa-clock-rotate-left w-4 text-center text-teal-600"></i>
+          <span>Nhật Ký & Hoạt Động</span>
+        </button>
         <button onclick="switchView('programs')" id="nav-programs" class="sidebar-link w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
           <i class="fa-solid fa-store w-4 text-center"></i>
           <span>Chương trình & Cửa hàng</span>
@@ -524,6 +528,56 @@
     let currentAdmin = null;
     let detailedData = null;
 
+    
+    async function loadAuditLogs() {
+      const tbody = document.getElementById('auditLogsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang tải nhật ký...</td></tr>';
+
+      try {
+        const res = await fetch('/api/admin/audit-logs?limit=50', { credentials: 'include' });
+        const data = await res.json();
+        if (!data.ok || !data.logs || data.logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Chưa có nhật ký hoạt động nào.</td></tr>';
+          return;
+        }
+
+        document.getElementById('auditLogCount').innerText = `${data.logs.length} sự kiện gần nhất`;
+        tbody.innerHTML = '';
+        data.logs.forEach(log => {
+          const date = new Date(log.created_at);
+          const timeStr = date.toLocaleString('vi-VN');
+          
+          let actionBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${log.action}</span>`;
+          if (log.action.includes('AUTH') || log.action.includes('LOGIN')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700"><i class="fa-solid fa-right-to-bracket mr-1"></i>${log.action}</span>`;
+          } else if (log.action.includes('ACTIVATE') || log.action.includes('CREATE')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700"><i class="fa-solid fa-plus mr-1"></i>${log.action}</span>`;
+          } else if (log.action.includes('REDEEM') || log.action.includes('UPDATE')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"><i class="fa-solid fa-pen-to-square mr-1"></i>${log.action}</span>`;
+          } else if (log.action.includes('DELETE') || log.action.includes('REJECT')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700"><i class="fa-solid fa-trash mr-1"></i>${log.action}</span>`;
+          }
+
+          let detailText = log.detail || '-';
+          if (typeof detailText === 'object') detailText = JSON.stringify(detailText);
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50/80 transition';
+          tr.innerHTML = `
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">${timeStr}</td>
+            <td class="py-3 px-4 font-bold text-slate-900">${log.actor}</td>
+            <td class="py-3 px-4">${actionBadge}</td>
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-600">${log.target || '-'}</td>
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-500 max-w-xs truncate" title="${detailText}">${detailText}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500">Lỗi kết nối máy chủ khi lấy nhật ký!</td></tr>';
+      }
+    }
+
     function switchView(viewName) {
       ['overview', 'funnel', 'violations', 'dormant', 'pin', 'pos', 'programs', 'roles'].forEach(name => {
         const el = document.getElementById('view-' + name);
@@ -553,6 +607,7 @@
           return false;
         }
 
+        
         currentAdmin = data.user;
         document.getElementById('loggedOutSection').classList.add('hidden');
         document.getElementById('loggedInSection').classList.remove('hidden');
@@ -561,7 +616,19 @@
         document.getElementById('currentAdminName').innerText = currentAdmin.name;
         if (currentAdmin.avatar) {
           document.getElementById('adminAvatarImg').src = currentAdmin.avatar;
+          const auditAvatar = document.getElementById('auditAccountAvatar');
+          if (auditAvatar) auditAvatar.src = currentAdmin.avatar;
         }
+
+        const auditName = document.getElementById('auditAccountName');
+        if (auditName) auditName.innerText = currentAdmin.name;
+        const auditLark = document.getElementById('auditAccountLarkId');
+        if (auditLark) auditLark.innerText = currentAdmin.openId || 'ou_45760cf4c58e0ab0217683d64cd36f65';
+        const auditRole = document.getElementById('auditAccountRole');
+        if (auditRole) auditRole.innerText = currentAdmin.role === 'admin_ho' ? 'ADMIN HO (Toàn quyền)' : 'STORE MANAGER';
+        const auditTime = document.getElementById('auditLastLoginTime');
+        if (auditTime) auditTime.innerText = new Date().toLocaleString('vi-VN');
+
 
         return true;
       } catch (e) {
