@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
+  <title>Sakuko Daily - Thẻ Khách Hàng Thân Thiết</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      background-color: #f8fafc;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, button, select, textarea {
+      font-size: 16px !important;
+    }
+    .sakuko-primary-gradient {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    }
+    .sakuko-card-bg {
+      background: linear-gradient(135deg, #be123c 0%, #881337 100%);
+    }
+    .sakuko-light-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start bg-slate-100">
+
+  <!-- Container App Mobile Thuần Khách Hàng (Không lộ tab Admin) -->
+  <div class="w-full max-w-md min-h-screen flex flex-col bg-white border-x border-slate-200 shadow-xl relative pb-6">
+    
+    <!-- Top Header Thương Hiệu Sakuko Daily -->
+    <header class="p-3.5 bg-white/95 sticky top-0 z-30 border-b border-slate-100 flex items-center justify-between backdrop-blur-md">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-xl sakuko-primary-gradient flex items-center justify-center font-black text-white text-base shadow-sm">
+          S
+        </div>
+        <div>
+          <div class="flex items-center space-x-1">
+            <h1 class="text-sm font-extrabold text-slate-900 tracking-tight">SAKUKO</h1>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-600 uppercase">Daily</span>
+          </div>
+          <p class="text-[10px] text-slate-500 font-medium">Thẻ Ưu Đãi Tiết Kiệm 10 Lượt</p>
+        </div>
+      </div>
+      <div id="headerUserActions" class="flex items-center space-x-2">
+        <!-- Render SĐT và Nút đăng xuất khi khách đã login -->
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 overflow-y-auto">
+
+      <!-- ============================================ -->
+      <!-- SCREEN 1: ĐĂNG NHẬP / ĐĂNG KÝ (SĐT + PIN 6 SỐ) -->
+      <!-- ============================================ -->
+      <div id="screenAuth" class="space-y-6 pt-4">
+        <div class="text-center space-y-1">
+          <div class="w-16 h-16 mx-auto rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl shadow-sm mb-3">
+            <i class="fa-solid fa-gem"></i>
+          </div>
+          <h2 class="text-xl font-bold text-slate-900">Thẻ Thành Viên Sakuko Daily</h2>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto">Đăng nhập hoặc đăng ký nhanh bằng số điện thoại để quản lý 10 lượt ưu đãi</p>
+        </div>
+
+        <div class="sakuko-light-card p-6 rounded-3xl space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Số điện thoại</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
+                <i class="fa-solid fa-phone"></i>
+              </span>
+              <input type="tel" id="authPhone" placeholder="0981234567" maxlength="10"
+                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-rose-500 focus:bg-white transition">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Mã PIN (6 chữ số)</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
+                <i class="fa-solid fa-lock"></i>
+              </span>
+              <input type="password" id="authPin" placeholder="••••••" maxlength="6" inputmode="numeric"
+                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-rose-500 focus:bg-white transition">
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Khách mới chưa có tài khoản sẽ tự động được khởi tạo với PIN này.</p>
+          </div>
+
+          <button onclick="handleLoginOrRegister()"
+            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-rose-500/25 active:scale-[0.98] transition">
+            Tiếp Tục Đăng Nhập
+          </button>
+
+          <div class="text-center pt-1">
+            <button onclick="showScreen('screenForgotPin')" class="text-xs font-semibold text-rose-600 hover:text-rose-700">
+              Quên mã PIN? Bấm vào đây để đổi
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- SCREEN 2: HIỂN THỊ MÃ KHÔI PHỤC KHI ĐĂNG KÝ MỚI -->
+      <!-- ============================================ -->
+      <div id="screenRecoveryNotice" class="hidden space-y-6 pt-4 text-center">
+        <div class="w-14 h-14 mx-auto rounded-3xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl shadow-sm">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Lưu Mã Khôi Phục Bí Mật</h2>
+          <p class="text-xs text-slate-500 mt-1 px-4">Mã này giúp bạn tự cấp lại PIN khi quên. Hệ thống chỉ hiển thị duy nhất 1 lần!</p>
+        </div>
+
+        <div class="sakuko-light-card p-5 rounded-3xl border border-amber-200 space-y-3">
+          <p class="text-[11px] text-amber-700 uppercase tracking-wider font-bold">Mã Khôi Phục Của Bạn</p>
+          <div id="displayRecoveryCode" class="text-2xl font-mono font-black text-slate-900 tracking-widest py-3 bg-amber-50 rounded-2xl select-all border border-amber-200">
+            --------
+          </div>
+          <p class="text-[11px] text-slate-400">Hãy chụp ảnh màn hình lưu lại nhé.</p>
+        </div>
+
+        <button onclick="confirmSavedRecoveryCode()"
+          class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md active:scale-[0.98] transition">
+          Tôi Đã Lưu Mã Khôi Phục
+        </button>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- SCREEN 3: QUÊN PIN QUA MÃ KHÔI PHỤC         -->
+      <!-- ============================================ -->
+      <div id="screenForgotPin" class="hidden space-y-6 pt-4">
+        <div class="text-center space-y-1">
+          <h2 class="text-lg font-bold text-slate-900">Khôi Phục Mã PIN</h2>
+          <p class="text-xs text-slate-500">Nhập SĐT và mã khôi phục để tạo mã PIN 6 số mới</p>
+        </div>
+
+        <div class="sakuko-light-card p-5 rounded-3xl space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Số điện thoại</label>
+            <input type="tel" id="recPhone" placeholder="0981234567" maxlength="10"
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-rose-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Mã khôi phục bí mật</label>
+            <input type="text" id="recCode" placeholder="Ví dụ: X9K2LM8P"
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-mono uppercase focus:outline-none focus:border-rose-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Mã PIN 6 số mới</label>
+            <input type="password" id="recNewPin" placeholder="••••••" maxlength="6" inputmode="numeric"
+              class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-rose-500">
+          </div>
+
+          <button onclick="handleResetPinByRecovery()"
+            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-md active:scale-[0.98] transition">
+            Xác Nhận Đổi PIN
+          </button>
+
+          <div class="text-center">
+            <button onclick="showScreen('screenAuth')" class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+              <i class="fa-solid fa-arrow-left mr-1"></i> Quay lại Đăng nhập
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- SCREEN 4: TRANG CHỦ / VOUCHER DASHBOARD      -->
+      <!-- ============================================ -->
+      <div id="screenCustomerHome" class="hidden space-y-4 pb-20">
+
+        <!-- THANH ĐIỀU HƯỚNG TABS CHO KHÁCH HÀNG -->
+        <div class="flex items-center justify-around bg-slate-200/80 p-1 rounded-2xl text-xs font-bold text-slate-600 shadow-inner">
+          <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex-1 py-2 rounded-xl sakuko-tab-btn active bg-white text-rose-600 shadow-sm transition">
+            <i class="fa-solid fa-ticket mr-1"></i> 10 Lượt
+          </button>
+          <button id="custTabBtn-history" onclick="switchCustTab('history')" class="flex-1 py-2 rounded-xl sakuko-tab-btn text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Lịch Sử
+          </button>
+          <button id="custTabBtn-wallet" onclick="switchCustTab('wallet')" class="flex-1 py-2 rounded-xl sakuko-tab-btn text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-wallet mr-1"></i> Ví Thẻ
+          </button>
+        </div>
+
+        <div id="custTabContent-home" class="space-y-4">
+        
+        <!-- THẺ THÀNH VIÊN VIRTUAL SAKUKO DAILY (SANG TRỌNG) -->
+        <div id="cardSection" class="rounded-3xl p-5 sakuko-card-bg text-white shadow-xl relative overflow-hidden">
+          <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/20">
+                  SAKUKO DAILY
+                </span>
+                <span class="text-[10px] text-rose-200 font-medium">CVS Xuân Thủy</span>
+              </div>
+              <h2 id="cardProgramName" class="text-base font-bold mt-1.5 text-white">Thẻ Ưu Đãi 10 Lượt</h2>
+            </div>
+            <span id="cardStatusBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm">
+              Đang hoạt động
+            </span>
+          </div>
+
+          <!-- Thanh tiến độ -->
+          <div class="bg-black/25 rounded-2xl p-3 mb-3.5 backdrop-blur-sm border border-white/10">
+            <div class="flex justify-between text-xs font-medium mb-1.5">
+              <span class="text-rose-100">Tiến độ sử dụng</span>
+              <span id="cardProgressText" class="font-extrabold text-amber-300">0 / 10 lượt</span>
+            </div>
+            <div class="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
+              <div id="cardProgressBar" class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Lưới 10 ô tem tích điểm phong cách Sakuko -->
+          <div id="stampsGrid" class="grid grid-cols-5 gap-2">
+            <!-- Render JS -->
+          </div>
+        </div>
+
+        <!-- TRƯỜNG HỢP CHƯA CÓ THẺ HOẶC HẾT LƯỢT -->
+        
+        <!-- DANH SÁCH CHƯƠNG TRÌNH & THỂ LỆ THẺ NBT -->
+        <div id="programsSection" class="sakuko-light-card p-5 rounded-3xl space-y-4 border border-slate-200">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                <i class="fa-solid fa-tags"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Chương Trình Ưu Đãi Mở Bán</h3>
+                <span class="text-[10px] text-slate-500 font-medium">Chọn chương trình để xem thể lệ và mua thẻ</span>
+              </div>
+            </div>
+          </div>
+          <div id="customerProgramsList" class="space-y-3">
+            <!-- Render JS -->
+          </div>
+        </div>
+
+        <div id="noCardSection" class="hidden sakuko-light-card p-6 rounded-3xl text-center space-y-4">
+          <div class="w-16 h-16 mx-auto rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center text-3xl shadow-sm">
+            <i class="fa-solid fa-gift"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Kích Hoạt Thẻ Sakuko Daily</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Chỉ 10.000đ để nhận ngay gói voucher tiết kiệm tới 60.000đ cho 10 lần mua sắm!</p>
+          </div>
+          <button onclick="handleBuyCard()"
+            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-rose-500/25 active:scale-[0.98] transition">
+            <i class="fa-solid fa-cart-shopping mr-1.5"></i> Mua Thẻ Ngay (10.000đ)
+          </button>
+        </div>
+
+        </div>
+    </main>
+
+  </div>
+
+  <script>
+    let currentCustomer = null;
+    let currentCard = null;
+    let nextVoucher = null;
+    let activeProgram = null;
+
+    function showScreen(screenId) {
+      ['screenAuth', 'screenRecoveryNotice', 'screenForgotPin', 'screenCustomerHome'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      const target = document.getElementById(screenId);
+      if (target) target.classList.remove('hidden');
+    }
+
+    setInterval(() => {
+      const el = document.getElementById('liveClock');
+      if (el) {
+        el.innerText = new Date().toTimeString().split(' ')[0];
+      }
+    }, 1000);
+
+    // ==========================================
+    // KHÁCH HÀNG: ĐĂNG NHẬP / ĐĂNG KÝ
+    // ==========================================
+    async function handleLoginOrRegister() {
+      const phone = document.getElementById('authPhone').value.trim();
+      const pin = document.getElementById('authPin').value.trim();
+      if (!phone || !pin) return alert('Vui lòng nhập đầy đủ SĐT và mã PIN 6 số!');
+
+      try {
+        const res = await fetch('/api/auth/login-or-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, pin })
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error);
+
+        if (data.isNew && data.recoveryCode) {
+          document.getElementById('displayRecoveryCode').innerText = data.recoveryCode;
+          showScreen('screenRecoveryNotice');
+        } else {
+          await loadCustomerData();
+          showScreen('screenCustomerHome');
+        }
+      } catch (err) {
+        alert('Lỗi kết nối máy chủ!');
+      }
+    }
+
+    function confirmSavedRecoveryCode() {
+      loadCustomerData();
+      showScreen('screenCustomerHome');
+    }
+
+    async function handleResetPinByRecovery() {
+      const phone = document.getElementById('recPhone').value.trim();
+      const recoveryCode = document.getElementById('recCode').value.trim();
+      const newPin = document.getElementById('recNewPin').value.trim();
+      if (!phone || !recoveryCode || !newPin) return alert('Vui lòng nhập đầy đủ thông tin!');
+
+      try {
+        const res = await fetch('/api/auth/reset-pin-by-recovery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, recoveryCode, newPin })
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error);
+        alert(data.message);
+        showScreen('screenAuth');
+      } catch (err) {
+        alert('Lỗi kết nối!');
+      }
+    }
+
+    async function loadCustomerData() {
+      try {
+        const res = await fetch('/api/customer/me');
+        if (res.status === 401) {
+          showScreen('screenAuth');
+          return;
+        }
+        const data = await res.json();
+        if (!data.ok) return;
+
+        currentCustomer = data.customer;
+        currentCard = data.currentCard;
+        nextVoucher = data.nextVoucher;
+        activeProgram = data.activeProgram;
+
+        document.getElementById('headerUserActions').innerHTML = `
+          <span class="text-xs font-mono text-slate-700 font-bold bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">${currentCustomer.phone}</span>
+          <button onclick="handleLogout()" class="text-slate-400 hover:text-rose-600 text-xs p-1" title="Đăng xuất">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        `;
+
+        renderCardAndVoucher(data);
+        renderProgramsList(data.programs || (data.activeProgram ? [data.activeProgram] : []), data.currentCard);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function handleLogout() {
+      document.cookie = 'nbt_token=; Max-Age=0; path=/;';
+      currentCustomer = null;
+      document.getElementById('headerUserActions').innerHTML = '';
+      showScreen('screenAuth');
+    }
+
+    function renderCardAndVoucher(data) {
+      const cardSec = document.getElementById('cardSection');
+      if (!data.currentCard) {
+        if (cardSec) cardSec.classList.add('hidden');
+        return;
+      }
+
+      if (cardSec) cardSec.classList.remove('hidden');
+      const card = data.currentCard;
+      document.getElementById('cardProgramName').innerText = card.program_name || 'Thẻ Sakuko Daily';
+      document.getElementById('cardProgressText').innerText = `${card.uses_count} / 10 lượt`;
+      document.getElementById('cardProgressBar').style.width = `${(card.uses_count / 10) * 100}%`;
+
+      renderStampsGrid(card, data.usedToday);
+
+      // Render bảng chi tiết 10 lượt
+      const tableBody = document.getElementById('detailStepsTableBody');
+      if (tableBody) {
+        tableBody.innerHTML = '';
+        for (let i = 1; i <= 10; i++) {
+          const isDone = i <= card.uses_count;
+          const isCurrent = (i === Number(card.uses_count) + 1);
+          const isBig = (i === 5 || i === 10);
+          const discountStr = isBig ? 'Giảm 10.000đ' : 'Giảm 5.000đ';
+          
+          let statusBadge = '';
+          if (isDone) {
+            statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Đã dùng</span>';
+          } else if (isCurrent) {
+            statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 animate-pulse">Lượt tiếp theo</span>';
+          } else {
+            statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-medium text-slate-400 bg-slate-100">Chưa mở</span>';
+          }
+
+          const tr = document.createElement('tr');
+          tr.className = isCurrent ? 'bg-rose-50/50 font-bold' : 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="py-2 font-mono ${isBig ? 'text-rose-600 font-bold' : 'text-slate-800'}">Lượt #${i}</td>
+            <td class="py-2 font-bold ${isBig ? 'text-rose-600' : 'text-slate-900'}">${discountStr}</td>
+            <td class="py-2 text-slate-500">Từ 20.000đ</td>
+            <td class="py-2 text-right">${statusBadge}</td>
+          `;
+          tableBody.appendChild(tr);
+        }
+      }
+
+
+      const activeArea = document.getElementById('voucherActiveArea');
+      const usedNotice = document.getElementById('voucherUsedNotice');
+      const newWaitNotice = document.getElementById('cardNewWaitNotice');
+
+      activeArea.classList.add('hidden');
+      usedNotice.classList.add('hidden');
+      newWaitNotice.classList.add('hidden');
+
+      const isWaitNextDay = new Date() < new Date(card.usable_from);
+
+      if (isWaitNextDay) {
+        newWaitNotice.classList.remove('hidden');
+      } else if (data.usedToday) {
+        usedNotice.classList.remove('hidden');
+      } else if (data.nextVoucher) {
+        activeArea.classList.remove('hidden');
+        const v = data.nextVoucher;
+        document.getElementById('voucherTitle').innerText = `Lượt ${v.useNo}: Giảm ${v.discount.toLocaleString()}đ (Đơn từ ${v.aovMin.toLocaleString()}đ)`;
+        document.getElementById('voucherCodeText').innerText = v.voucherCode;
+        document.getElementById('voucherCustomerPhone').innerText = currentCustomer.phone;
+
+        try {
+          JsBarcode("#barcodeCanvas", v.voucherCode, {
+            format: "CODE128",
+            lineColor: "#0f172a",
+            width: 2,
+            height: 48,
+            displayValue: false
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        voucherSec.classList.add('hidden');
+      }
+    }
+
+    
+    
+    
+    let buyPollTimer = null;
+
+    function handleBuyCard(progId) {
+      const prog = (availablePrograms && availablePrograms.find(p => p.id === progId)) || activeProgram;
+      if (!prog) return alert('Chưa có thông tin chương trình!');
+      selectedProgramToBuy = prog;
+      const barcode = prog.barcode || '2000000000018';
+      document.getElementById('buyModalBarcodeText').innerText = barcode;
+      try {
+        JsBarcode('#buyBarcodeSvg', barcode, {
+          format: 'CODE128',
+          lineColor: '#0f172a',
+          width: 2,
+          height: 50,
+          displayValue: false
+        });
+      } catch (err) {
+        console.error('Lỗi sinh barcode:', err);
+      }
+      document.getElementById('buyCardModal').classList.remove('hidden');
+
+      if (buyPollTimer) clearInterval(buyPollTimer);
+      buyPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/customer/me');
+          const data = await res.json();
+          if (data.ok && data.currentCard) {
+            clearInterval(buyPollTimer);
+            closeBuyModal();
+            alert('Máy POS đã xác nhận thanh toán! Thẻ Sakuko Daily đã được kích hoạt.');
+            loadCustomerData();
+          }
+        } catch (e) {}
+      }, 2000);
+    }
+
+    function closeBuyModal() {
+      if (buyPollTimer) clearInterval(buyPollTimer);
+      document.getElementById('buyCardModal').classList.add('hidden');
+    }
+
+    async function simulatePosScanEvent() {
+      if (!currentCustomer || !currentCustomer.phone) return alert('Chưa có thông tin khách');
+      try {
+        const prog = selectedProgramToBuy || activeProgram;
+        const res = await fetch('/api/pos/card-purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: currentCustomer.phone,
+            storeCode: 'XT',
+            orderNo: 'ORD_POS_' + Math.floor(Math.random() * 899999 + 100000),
+            programId: prog ? prog.id : 1
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error);
+        clearInterval(buyPollTimer);
+        closeBuyModal();
+        alert('Giả lập POS quét thành công! Thẻ của bạn đã được kích hoạt.');
+        loadCustomerData();
+      } catch (e) {
+        alert('Lỗi giả lập POS');
+      }
+    }
+
+
+
+
+    async function handleRedeemCurrentVoucher() {
+      if (!currentCard) return;
+      if (!confirm('Xác nhận thu ngân đã quét mã và áp dụng ưu đãi vào đơn hàng POS?')) return;
+
+      try {
+        const res = await fetch('/api/customer/redeem-voucher', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId: currentCard.id, orderNo: 'ORD_' + Math.floor(Math.random() * 899999 + 100000) })
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error);
+        alert(data.message);
+        loadCustomerData();
+      } catch (e) {
+        alert('Lỗi giao dịch!');
+      }
+    }
+
+    
+    let selectedStepForModal = null;
+
+    function renderStampsGrid(card, usedToday) {
+      const grid = document.getElementById('stampsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const usesCount = Number(card.uses_count || 0);
+      const isWaitFirstDay = new Date() < new Date(card.usable_from);
+      const activeStep = usesCount + 1; // Lượt kế tiếp cần dùng
+
+      for (let i = 1; i <= 10; i++) {
+        const isUsed = i <= usesCount;
+        const isCurrentActive = (i === activeStep) && !isWaitFirstDay && !usedToday;
+        const isBig = (i === 5 || i === 10);
+        const discountLabel = isBig ? '10K' : '5K';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+
+        if (isUsed) {
+          // Đã dùng: mờ, có dấu tick
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/40 text-white/50 border border-white/10 cursor-not-allowed opacity-60';
+          btn.innerHTML = `
+            <span class="line-through">#${i}</span>
+            <span class="text-[9px]"><i class="fa-solid fa-check text-emerald-400"></i> Đã dùng</span>
+          `;
+          btn.onclick = () => alert(`Lượt #${i} đã được sử dụng!`);
+        } else if (isCurrentActive) {
+          // Lượt hôm nay ĐƯỢC PHÉP DÙNG: SÁNG RỰC LÊN, CLICK ĐƯỢC
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-black text-xs bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/40 border-2 border-white scale-105 animate-pulse cursor-pointer';
+          btn.innerHTML = `
+            <span class="text-sm">#${i}</span>
+            <span class="text-[10px] font-extrabold uppercase bg-rose-600 text-white px-1.5 py-0.2 rounded-full mt-0.5">Mở ${discountLabel}</span>
+          `;
+          btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
+        } else if (i === activeStep && usedToday) {
+          // Đã dùng lượt hôm nay rồi, chờ ngày mai
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/70 border border-white/20 cursor-pointer';
+          btn.innerHTML = `
+            <span>#${i}</span>
+            <span class="text-[9px] text-amber-200">Mai mở</span>
+          `;
+          btn.onclick = () => alert(`Hôm nay bạn đã dùng ưu đãi rồi! Lượt #${i} sẽ mở vào ngày mai.`);
+        } else if (i === activeStep && isWaitFirstDay) {
+          // Thẻ mới mua, mai mới bắt đầu lượt 1
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/70 border border-white/20 cursor-pointer';
+          btn.innerHTML = `
+            <span>#${i}</span>
+            <span class="text-[9px] text-amber-200">Mai mở</span>
+          `;
+          btn.onclick = () => alert(`Thẻ mới mua hôm nay. Lượt #${i} sẽ bắt đầu có hiệu lực từ ngày mai!`);
+        } else {
+          // Các lượt tương lai chưa đến ngày
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/10 text-white/40 border border-white/10 cursor-not-allowed';
+          btn.innerHTML = `
+            <span>#${i}</span>
+            <span class="text-[9px]">${discountLabel}</span>
+          `;
+          btn.onclick = () => alert(`Lượt #${i} chưa mở. Vui lòng hoàn thành các lượt trước theo thứ tự mỗi ngày 1 lượt!`);
+        }
+
+        grid.appendChild(btn);
+      }
+    }
+
+    function openVoucherModal(step, discount) {
+      selectedStepForModal = step;
+      const isBig = (step === 5 || step === 10);
+      const discountText = isBig ? 'Giảm 10.000đ (Đơn từ 20.000đ)' : 'Giảm 5.000đ (Đơn từ 20.000đ)';
+      const fakeCode = isBig ? `DAILY10K-0${step}` : `DAILY5K-0${step}`;
+      const fakeBarcode = `8938500${step}0005`;
+
+      document.getElementById('voucherModalStepBadge').innerText = `LƯỢT #${step} (HÔM NAY)`;
+      document.getElementById('voucherModalDiscountText').innerText = discountText;
+      document.getElementById('voucherModalCodeText').innerText = fakeCode;
+
+      // Tính ngày tháng năm và thời hạn còn lại trong ngày (đến 23:59:59 đêm nay)
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      const diffMs = midnight - now;
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffMinutes = Math.floor((diffMs % 3600000) / 60000);
+
+      document.getElementById('voucherModalDateStr').innerText = `Ngày: ${dateStr}`;
+      document.getElementById('voucherModalCountdown').innerText = `Hạn: còn ${diffHours}h ${diffMinutes}m hôm nay`;
+
+      try {
+        JsBarcode('#voucherModalBarcodeSvg', fakeBarcode, {
+          format: 'CODE128',
+          lineColor: '#0f172a',
+          width: 2,
+          height: 50,
+          displayValue: true,
+          text: fakeBarcode
+        });
+      } catch (err) {
+        console.error('Barcode render err:', err);
+      }
+
+      document.getElementById('voucherModal').classList.remove('hidden');
+    }
+
+    function closeVoucherModal() {
+      document.getElementById('voucherModal').classList.add('hidden');
+    }
+
+    async function simulateRedeemCurrent() {
+      if (!currentCard) return;
+      try {
+        const res = await fetch('/api/customer/redeem-voucher', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId: currentCard.id,
+            orderNo: 'ORD_' + Math.floor(Math.random() * 899999 + 100000)
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error);
+        alert(data.message || 'Đã áp dụng voucher thành công!');
+        closeVoucherModal();
+        loadCustomerData();
+      } catch (e) {
+        alert('Lỗi áp dụng voucher');
+      }
+    }
+
+    
+    let availablePrograms = [];
+    let selectedProgramToBuy = null;
+
+    
+    function switchCustTab(tabName) {
+      ['home', 'history', 'wallet'].forEach(t => {
+        const btn = document.getElementById('custTabBtn-' + t);
+        const content = document.getElementById('custTabContent-' + t);
+        if (btn) {
+          if (t === tabName) {
+            btn.className = 'flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition';
+          } else {
+            btn.className = 'flex flex-col items-center py-1 px-3 text-slate-400 font-semibold hover:text-slate-700 transition';
+          }
+        }
+        if (content) {
+          if (t === tabName) content.classList.remove('hidden');
+          else content.classList.add('hidden');
+        }
+      });
+
+      if (tabName === 'history') loadHistoryData();
+      if (tabName === 'wallet') loadWalletData();
+    }
+
+    async function loadHistoryData() {
+      const container = document.getElementById('historyListContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang tải lịch sử...</div>';
+      try {
+        const res = await fetch('/api/customer/redemption-history');
+        const data = await res.json();
+        if (!data.ok || !data.history || data.history.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-6 space-y-2">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-receipt"></i>
+              </div>
+              <p class="text-xs text-slate-500 font-medium">Bạn chưa sử dụng lượt ưu đãi nào.</p>
+              <p class="text-[10px] text-slate-400">Khi thu ngân quét mã tại quầy, lịch sử áp dụng voucher sẽ hiển thị tại đây.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = '';
+        data.history.forEach(item => {
+          const usedDate = new Date(item.used_at);
+          const dateStr = usedDate.toLocaleDateString('vi-VN');
+          const timeStr = usedDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const discountStr = Number(item.discount || 0).toLocaleString() + 'đ';
+
+          const div = document.createElement('div');
+          div.className = 'p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between';
+          div.innerHTML = `
+            <div class="space-y-0.5">
+              <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  Lượt #${item.step_number || item.use_step || 1}
+                </span>
+                <span class="text-xs font-bold text-slate-800">Giảm ${discountStr}</span>
+              </div>
+              <p class="text-[11px] text-slate-500">Mã đơn: <span class="font-mono font-bold text-slate-700">${item.order_no || 'POS-DIRECT'}</span></p>
+              <p class="text-[10px] text-slate-400"><i class="fa-regular fa-clock mr-1"></i>${dateStr} lúc ${timeStr} · CH ${item.store_code || 'XT'}</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                <i class="fa-solid fa-check mr-0.5"></i> Thành công
+              </span>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        container.innerHTML = '<p class="text-xs text-rose-500 text-center py-3">Lỗi tải lịch sử ưu đãi</p>';
+      }
+    }
+
+    async function loadWalletData() {
+      const container = document.getElementById('walletCardsContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang tải ví thẻ...</div>';
+      try {
+        const res = await fetch('/api/customer/my-cards');
+        const data = await res.json();
+        if (!data.ok || !data.cards || data.cards.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-6 space-y-2">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-id-card"></i>
+              </div>
+              <p class="text-xs text-slate-500 font-medium">Bạn chưa mua thẻ ưu đãi nào.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = '';
+        data.cards.forEach(card => {
+          const uses = Number(card.uses_count || 0);
+          const isActive = card.status === 'active';
+          const isUsedUp = card.status === 'used_up' || uses >= 10;
+          const statusBadge = isActive 
+            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Đang hoạt động</span>'
+            : isUsedUp 
+              ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">Đã dùng hết 10 lượt</span>'
+              : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Hết hạn</span>';
+
+          const div = document.createElement('div');
+          div.className = 'p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg space-y-3';
+          div.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20">Mã thẻ #${card.id}</span>
+                <h4 class="text-sm font-bold text-white mt-1">${card.program_name || 'Thẻ Sakuko Daily'}</h4>
+                <p class="text-[10px] text-slate-300">Cửa hàng đăng ký: ${card.store_code || 'XT'}</p>
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+
+            <!-- Tiến độ -->
+            <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 text-[11px]">Tiến độ sử dụng</span>
+                <span class="font-extrabold text-amber-300 text-[11px]">${uses} / 10 lượt</span>
+              </div>
+              <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="h-full bg-amber-400 rounded-full" style="width: ${(uses / 10) * 100}%"></div>
+              </div>
+            </div>
+
+            <div class="flex justify-between text-[10px] text-slate-400 pt-1 border-t border-white/10">
+              <span>Mua ngày: ${card.purchased_at ? new Date(card.purchased_at).toLocaleDateString('vi-VN') : '-'}</span>
+              <span>Dùng từ: ${card.usable_from ? new Date(card.usable_from).toLocaleDateString('vi-VN') : '-'}</span>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        container.innerHTML = '<p class="text-xs text-rose-500 text-center py-3">Lỗi tải ví thẻ</p>';
+      }
+    }
+
+    function toggleProgramAccordion(id) {
+      const body = document.getElementById('programDetail-' + id);
+      const icon = document.getElementById('programIcon-' + id);
+      if (!body) return;
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-up text-xs text-slate-400';
+      } else {
+        body.classList.add('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-down text-xs text-slate-400';
+      }
+    }
+
+    function renderProgramsList(programs, cardObj) {
+      const container = document.getElementById('customerProgramsList');
+      if (!container) return;
+      container.innerHTML = '';
+      availablePrograms = programs || [];
+
+      if (!programs || programs.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-2">Hiện chưa có chương trình nào mở bán.</p>';
+        return;
+      }
+
+      // Kiểm tra chắc chắn khách đang có thẻ active
+      const hasActiveCard = !!(cardObj || currentCard);
+      const activeCardData = cardObj || currentCard;
+
+      programs.forEach(p => {
+        const cardPriceFormatted = Number(p.card_price || 10000).toLocaleString() + 'đ';
+        const aovMinFormatted = Number(p.aov_min || 20000).toLocaleString() + 'đ';
+        const remainingUses = hasActiveCard ? (10 - Number(activeCardData.uses_count || 0)) : 10;
+
+        const div = document.createElement('div');
+        div.className = 'rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden';
+        div.innerHTML = `
+          <!-- Header bấm để mở rộng / thu gọn -->
+          <div onclick="toggleProgramAccordion(${p.id})" class="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-100/70 transition">
+            <div class="space-y-0.5 pr-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${hasActiveCard ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'}">
+                  ${hasActiveCard ? 'Đang Sử Dụng' : 'Đang Mở Bán'}
+                </span>
+                <span class="text-xs font-bold text-slate-900">${p.name}</span>
+              </div>
+              <p class="text-[11px] text-slate-500">${hasActiveCard ? 'Bấm để xem lại thể lệ chương trình' : 'Bấm để xem chi tiết thể lệ & mua thẻ'}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-black text-rose-600 font-mono">${cardPriceFormatted}</span>
+              <i id="programIcon-${p.id}" class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+            </div>
+          </div>
+
+          <!-- Thể lệ -->
+          <div id="programDetail-${p.id}" class="hidden p-3.5 pt-0 space-y-3 border-t border-slate-200/60 bg-white">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1 mt-2.5">
+              <div class="font-bold text-slate-800 text-xs mb-1 flex items-center">
+                <i class="fa-solid fa-circle-info text-rose-500 mr-1.5"></i> Thể lệ chương trình:
+              </div>
+              <p>• <b>Gói ưu đãi:</b> 10 lần mua hàng (Lượt 1–4 & 6–9 giảm 5.000đ; Lượt 5 & 10 giảm 10.000đ).</p>
+              <p>• <b>Đơn tối thiểu:</b> Từ ${aovMinFormatted} sau khi trừ các khuyến mãi khác.</p>
+              <p>• <b>Quy tắc sử dụng:</b> Tối đa 1 lượt/ngày. Mua hôm nay, từ ngày mai bắt đầu dùng.</p>
+              <p>• <b>Thời hạn:</b> Áp dụng đến hết ngày ${new Date(p.end_date).toLocaleDateString('vi-VN')}.</p>
+            </div>
+
+            <div>
+              ${hasActiveCard 
+                ? `<div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center shadow-sm">
+                    <i class="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> Bạn đang sở hữu thẻ này (Còn ${remainingUses} lượt ưu đãi)
+                  </div>`
+                : `<button onclick="handleBuyCard(${p.id})" class="w-full py-2.5 rounded-xl sakuko-primary-gradient text-white font-bold text-xs shadow-md shadow-rose-500/20 active:scale-[0.98] transition flex items-center justify-center">
+                    <i class="fa-solid fa-cart-shopping mr-1.5"></i> Mua Thẻ Ngay (${cardPriceFormatted})
+                  </button>`
+              }
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      // Banner Tháng 10
+      const octoberBanner = document.createElement('div');
+      octoberBanner.className = 'p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-200/80 flex items-center justify-between';
+      octoberBanner.innerHTML = `
+        <div class="space-y-0.5">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+              HOT · Tháng 10
+            </span>
+            <h4 class="font-bold text-slate-900 text-xs">Lễ Hội Mua Sắm Sakuko Daily</h4>
+          </div>
+          <p class="text-[10px] text-slate-500">Ưu đãi đồng loạt từng điểm bán</p>
+        </div>
+        <a href="https://sakukodaily.com.vn/blogs/news" target="_blank" rel="noopener noreferrer"
+          class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-rose-600 font-bold text-[11px] border border-rose-200 shadow-sm transition flex items-center shrink-0">
+          Xem Ngay <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px]"></i>
+        </a>
+      `;
+      container.appendChild(octoberBanner);
+    }
+
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadCustomerData();
+    });
+  </script>
+
+  <!-- MODAL QUÉT MÃ MUA THẺ TẠI QUẦY THU NGÂN -->
+  <div id="buyCardModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="text-left">
+          <h3 class="text-sm font-black text-slate-900 uppercase tracking-tight">Thanh Toán Mua Thẻ</h3>
+          <span class="text-[11px] text-slate-500 font-medium">Sakuko Daily (10.000đ / 10 lượt)</span>
+        </div>
+        <button onclick="closeBuyModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Khung Barcode -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+        <span class="text-[11px] font-bold text-slate-500 block">MÃ BARCODE MUA HÀNG:</span>
+        <div class="font-mono text-xl font-black text-slate-900 tracking-widest" id="buyModalBarcodeText">2000000000018</div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
+          <svg id="buyBarcodeSvg" class="w-full max-h-20"></svg>
+        </div>
+      </div>
+
+      <!-- Ghi chú cho khách hàng -->
+      <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-left space-y-1">
+        <div class="flex items-center text-amber-800 text-xs font-bold">
+          <i class="fa-solid fa-circle-exclamation mr-1.5 text-amber-600"></i> Lưu ý quan trọng:
+        </div>
+        <p class="text-[11px] text-amber-900 font-medium leading-relaxed">
+          Khách hàng vui lòng cung cấp mã barcode cho thu ngân để thanh toán và kích hoạt thẻ này.
+        </p>
+      </div>
+
+      <!-- Trạng thái chờ POS quét -->
+      <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-100 flex items-center justify-center space-x-2.5 text-rose-700 text-xs font-semibold">
+        <i class="fa-solid fa-circle-notch fa-spin text-sm text-rose-600"></i>
+        <span>Đang chờ thu ngân thanh toán tại quầy...</span>
+      </div>
+
+      <div class="space-y-2 pt-1">
+        <!-- Nút Test mô phỏng POS Extension bắn sự kiện -->
+        <button onclick="simulatePosScanEvent()"
+          class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center">
+          <i class="fa-solid fa-cash-register mr-1.5 text-slate-500"></i> [Giả Lập Test] Máy POS Quét & Thu Tiền
+        </button>
+        <button onclick="closeBuyModal()" class="w-full py-2 rounded-xl text-slate-400 hover:text-slate-600 font-semibold text-xs">
+          Đóng cửa sổ
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  
+        </div> <!-- End custTabContent-home -->
+
+        <!-- TAB 2: LỊCH SỬ ÁP DỤNG ƯU ĐÃI & ĐƠN HÀNG -->
+        <div id="custTabContent-history" class="hidden space-y-4">
+          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Lịch Sử Sử Dụng Ưu Đãi</h3>
+                  <span class="text-[10px] text-slate-500 font-medium">Chi tiết ngày giờ áp dụng voucher tại quầy</span>
+                </div>
+              </div>
+            </div>
+            <div id="historyListContainer" class="space-y-2.5">
+              <!-- Render JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: VÍ THẺ CỦA TÔI (QUẢN LÝ CÁC THẺ ĐÃ MUA) -->
+        <div id="custTabContent-wallet" class="hidden space-y-4">
+          <div class="sakuko-light-card p-5 rounded-3xl space-y-3.5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">
+                  <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-black uppercase text-slate-900 tracking-tight">Ví Thẻ Sakuko Daily</h3>
+                  <span class="text-[10px] text-slate-500 font-medium">Toàn bộ thẻ ảo đã kích hoạt theo SĐT</span>
+                </div>
+              </div>
+            </div>
+            <div id="walletCardsContainer" class="space-y-3">
+              <!-- Render JS -->
+            </div>
+          </div>
+        </div>
+
+  <!-- MODAL CHI TIẾT VOUCHER BARCODE KHI ẤN VÀO LƯỢT HỢP LỆ -->
+  <div id="voucherModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="text-left">
+          <span id="voucherModalStepBadge" class="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">LƯỢT #1</span>
+          <h3 id="voucherModalDiscountText" class="text-sm font-black text-slate-900 mt-1">Giảm 5.000đ (Đơn từ 20.000đ)</h3>
+        </div>
+        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Khung Barcode & Thời hạn -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
+          <span id="voucherModalDateStr">Ngày: --/--/----</span>
+          <span id="voucherModalCountdown" class="text-rose-600 font-mono font-bold">Còn --h--m</span>
+        </div>
+
+        <div class="font-mono text-xl font-black text-slate-900 tracking-widest pt-1" id="voucherModalCodeText">DAILY5K-01</div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
+          <svg id="voucherModalBarcodeSvg" class="w-full max-h-20"></svg>
+        </div>
+      </div>
+
+      <!-- Thông tin xác thực chống gian lận -->
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-left space-y-1">
+        <div class="flex items-center text-amber-800 text-xs font-bold">
+          <i class="fa-solid fa-clock mr-1.5 text-amber-600"></i> Quy tắc áp dụng:
+        </div>
+        <p class="text-[11px] text-amber-900 font-medium">
+          • Mỗi ngày chỉ dùng được <b>1 lần duy nhất</b> cho đơn hàng đầu tiên.<br/>
+          • Đưa mã Barcode này cho thu ngân quét tại quầy khi thanh toán.
+        </p>
+      </div>
+
+      <div class="space-y-2 pt-1">
+        <!-- Nút test quét voucher tại quầy -->
+        <button onclick="simulateRedeemCurrent()"
+          class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition flex items-center justify-center">
+          <i class="fa-solid fa-qrcode mr-1.5 text-rose-500"></i> [Giả Lập Test] Thu Ngân Quét Áp Voucher
+        </button>
+        <button onclick="closeVoucherModal()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- BOTTOM NAVIGATION BAR (CỐ ĐỊNH DƯỚI ĐÁY CHO MOBILE) -->
+    <div id="customerBottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 shadow-lg">
+      <div class="max-w-md mx-auto flex items-center justify-around">
+        <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex flex-col items-center py-1 px-3 text-rose-600 font-bold transition">
+          <i class="fa-solid fa-ticket text-lg"></i>
+          <span class="text-[10px] mt-0.5">10 Lượt</span>
+        </button>
+        <button id="custTabBtn-history" onclick="switchCustTab('history')" class="flex flex-col items-center py-1 px-3 text-slate-400 font-semibold hover:text-slate-700 transition">
+          <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+          <span class="text-[10px] mt-0.5">Lịch Sử</span>
+        </button>
+        <button id="custTabBtn-wallet" onclick="switchCustTab('wallet')" class="flex flex-col items-center py-1 px-3 text-slate-400 font-semibold hover:text-slate-700 transition">
+          <i class="fa-solid fa-wallet text-lg"></i>
+          <span class="text-[10px] mt-0.5">Ví Thẻ</span>
+        </button>
+      </div>
+    </div>
+
+</body>
+</html>
