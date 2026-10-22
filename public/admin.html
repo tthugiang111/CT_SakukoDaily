@@ -45,28 +45,29 @@
     </div>
 
     
-    <!-- User Profile & Lark Auth -->
+    <!-- User Profile (Góc phải: Thông tin tài khoản đăng nhập) -->
     <div class="flex items-center space-x-3">
-      <div id="loggedOutSection" class="hidden flex items-center space-x-2">
-        <a href="/api/admin/lark/login" class="px-4 py-2 rounded-xl sakuko-gradient text-white text-xs font-bold shadow-sm hover:opacity-95 transition flex items-center">
-          <i class="fa-brands fa-slack mr-2 text-sm"></i> Đăng nhập bằng Lark
-        </a>
-      </div>
-
       <div id="loggedInSection" class="flex items-center space-x-3">
-        <div class="flex items-center space-x-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-          <img id="adminAvatarImg" src="https://ui-avatars.com/api/?name=Giang+Tran&background=e11d48&color=fff" class="w-7 h-7 rounded-lg object-cover border border-rose-200" />
-          <div class="text-left text-xs leading-tight">
-            <span id="currentAdminName" class="font-bold text-slate-900 block">Trần Thị Thu Giang</span>
-            <span id="currentAdminRoleBadge" class="text-[10px] font-semibold text-rose-600">Admin HO (Toàn quyền duy nhất)</span>
+        <div class="flex items-center space-x-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+          <img id="adminAvatarImg" src="https://ui-avatars.com/api/?name=Giang+Tran&background=e11d48&color=fff" class="w-8 h-8 rounded-lg object-cover border border-rose-200 shadow-inner" />
+          <div class="text-left leading-tight">
+            <div class="flex items-center space-x-1.5">
+              <span id="currentAdminName" class="font-bold text-xs text-slate-900">Trần Thị Thu Giang</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Online"></span>
+            </div>
+            <span id="currentAdminRoleBadge" class="text-[10px] font-semibold text-rose-600 block">Admin HO (Toàn quyền)</span>
           </div>
         </div>
 
-        <button onclick="loadAllAdminData()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center">
-          <i class="fa-solid fa-rotate mr-1.5"></i> Làm mới
+        <button onclick="switchView('audit')" title="Xem nhật ký hoạt động & thông tin chi tiết" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center">
+          <i class="fa-solid fa-clock-rotate-left mr-1.5 text-teal-600"></i> Nhật ký
         </button>
 
-        <button onclick="handleLogout()" title="Đăng xuất" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center">
+        <button onclick="loadAllAdminData()" title="Làm mới dữ liệu" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+
+        <button onclick="handleLogout()" title="Đăng xuất khỏi hệ thống" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center">
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
