@@ -340,7 +340,7 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
 // Mua thẻ
 
 // API GIẢ LẬP KÍCH HOẠT THẺ NHANH & DÙNG ĐƯỢC NGAY
-app.post('/api/customer/fast-activate-card', custAuth, async (req, res) => {
+app.post('/api/customer/fast-activate-card', customerAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const custId = req.customer.id;
