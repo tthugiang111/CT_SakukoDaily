@@ -266,9 +266,7 @@
                   <span class="text-[10px] text-slate-500 font-medium">Xem thể lệ và quyền lợi thẻ ưu đãi</span>
                 </div>
               </div>
-              <button onclick="handleFastActivateCard()" class="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] shadow-sm flex items-center transition">
-                <i class="fa-solid fa-bolt mr-1"></i> [Test] Kích Hoạt Thẻ Dùng Ngay
-              </button>
+
             </div>
             <div id="customerProgramsList" class="space-y-3">
               <!-- Render JS -->
@@ -608,45 +606,28 @@
         btn.type = 'button';
 
         if (isUsed) {
-          // Đã dùng: mờ, có dấu tick
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/40 text-white/50 border border-white/10 cursor-not-allowed opacity-60';
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/40 text-white/50 border border-white/10 opacity-60 cursor-pointer hover:opacity-80 transition';
           btn.innerHTML = `
             <span class="line-through">#${i}</span>
             <span class="text-[9px]"><i class="fa-solid fa-check text-emerald-400"></i> Đã dùng</span>
           `;
-          btn.onclick = () => alert(`Lượt #${i} đã được sử dụng!`);
+          btn.onclick = () => alert(`Lượt #${i} (${discountLabel}) đã được sử dụng thành công!`);
         } else if (isCurrentActive) {
-          // Lượt hôm nay ĐƯỢC PHÉP DÙNG: SÁNG RỰC LÊN, CLICK ĐƯỢC
           btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-black text-xs bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/40 border-2 border-white scale-105 animate-pulse cursor-pointer';
           btn.innerHTML = `
             <span class="text-sm">#${i}</span>
             <span class="text-[10px] font-extrabold uppercase bg-rose-600 text-white px-1.5 py-0.2 rounded-full mt-0.5">Mở ${discountLabel}</span>
           `;
           btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
-        } else if (i === activeStep && usedToday) {
-          // Đã dùng lượt hôm nay rồi, chờ ngày mai
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/70 border border-white/20 cursor-pointer';
-          btn.innerHTML = `
-            <span>#${i}</span>
-            <span class="text-[9px] text-amber-200">Mai mở</span>
-          `;
-          btn.onclick = () => alert(`Hôm nay bạn đã dùng ưu đãi rồi! Lượt #${i} sẽ mở vào ngày mai.`);
-        } else if (i === activeStep && isWaitFirstDay) {
-          // Thẻ mới mua, mai mới bắt đầu lượt 1
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/70 border border-white/20 cursor-pointer';
-          btn.innerHTML = `
-            <span>#${i}</span>
-            <span class="text-[9px] text-amber-200">Mai mở</span>
-          `;
-          btn.onclick = () => alert(`Thẻ mới mua hôm nay. Lượt #${i} sẽ bắt đầu có hiệu lực từ ngày mai!`);
         } else {
-          // Các lượt tương lai chưa đến ngày
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/10 text-white/40 border border-white/10 cursor-not-allowed';
+          // Các lượt còn lại (đang chờ ngày mai hoặc lượt tiếp): Vẫn cho bấm vào để xem voucher và test quét
+          const subText = (i === activeStep && usedToday) ? 'Hôm nay' : (i === activeStep && isWaitFirstDay) ? 'Mai mở' : discountLabel;
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/90 border border-white/20 hover:bg-white/30 active:scale-95 transition cursor-pointer';
           btn.innerHTML = `
             <span>#${i}</span>
-            <span class="text-[9px]">${discountLabel}</span>
+            <span class="text-[9px] text-amber-200 font-extrabold">${subText}</span>
           `;
-          btn.onclick = () => alert(`Lượt #${i} chưa mở. Vui lòng hoàn thành các lượt trước theo thứ tự mỗi ngày 1 lượt!`);
+          btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
         }
 
         grid.appendChild(btn);
