@@ -389,6 +389,9 @@
 
         renderCardAndVoucher(data);
         renderProgramsList(data.programs || (data.activeProgram ? [data.activeProgram] : []), data.currentCard);
+        // Tự động load dữ liệu cho các tab
+        loadWalletData();
+        loadHistoryData();
       } catch (e) {
         console.error(e);
       }
@@ -403,13 +406,14 @@
 
     function renderCardAndVoucher(data) {
       const cardSec = document.getElementById('cardSection');
-      if (!data.currentCard) {
+      const card = data.currentCard;
+
+      if (!card) {
         if (cardSec) cardSec.classList.add('hidden');
         return;
       }
 
       if (cardSec) cardSec.classList.remove('hidden');
-      const card = data.currentCard;
       document.getElementById('cardProgramName').innerText = card.program_name || 'Thẻ Sakuko Daily';
       document.getElementById('cardProgressText').innerText = `${card.uses_count} / 10 lượt`;
       document.getElementById('cardProgressBar').style.width = `${(card.uses_count / 10) * 100}%`;
@@ -921,6 +925,54 @@
   </script>
 
   <!-- MODAL QUÉT MÃ MUA THẺ TẠI QUẦY THU NGÂN -->
+  
+  <!-- MODAL CHI TIẾT VOUCHER BARCODE KHI ẤN VÀO LƯỢT HỢP LỆ -->
+  <div id="voucherModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="text-left">
+          <span id="voucherModalStepBadge" class="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">LƯỢT #1</span>
+          <h3 id="voucherModalDiscountText" class="text-sm font-black text-slate-900 mt-1">Giảm 5.000đ (Đơn từ 20.000đ)</h3>
+        </div>
+        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Khung Barcode & Thời hạn -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
+          <span id="voucherModalDateStr">Ngày: --/--/----</span>
+          <span id="voucherModalCountdown" class="text-rose-600 font-mono font-bold">Còn --h--m</span>
+        </div>
+
+        <div class="font-mono text-xl font-black text-slate-900 tracking-widest pt-1" id="voucherModalCodeText">DAILY5K-01</div>
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
+          <svg id="voucherModalBarcodeSvg" class="w-full max-h-20"></svg>
+        </div>
+      </div>
+
+      <!-- Hướng dẫn sử dụng -->
+      <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-left space-y-1">
+        <div class="flex items-center text-amber-800 text-xs font-bold">
+          <i class="fa-solid fa-qrcode mr-1.5 text-amber-600"></i> Quét mã tại quầy:
+        </div>
+        <p class="text-[11px] text-amber-900 font-medium leading-relaxed">
+          Đưa mã barcode này cho thu ngân quét khi thanh toán đơn hàng từ 20.000đ. Mã có hiệu lực trong ngày hôm nay.
+        </p>
+      </div>
+
+      <div class="space-y-2 pt-1">
+        <!-- Nút test mô phỏng thu ngân quét -->
+        <button onclick="simulateRedeemCurrent()"
+          class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition flex items-center justify-center">
+          <i class="fa-solid fa-circle-check mr-1.5"></i> [Giả Lập] Thu Ngân Quét Voucher
+        </button>
+        <button onclick="closeVoucherModal()" class="w-full py-2 rounded-xl text-slate-400 hover:text-slate-600 font-semibold text-xs">
+          Đóng lại
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="buyCardModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="sakuko-light-card max-w-sm w-full p-6 rounded-3xl bg-white shadow-2xl text-center space-y-4 border border-rose-200">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
