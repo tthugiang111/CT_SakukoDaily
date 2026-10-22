@@ -1043,36 +1043,132 @@ app.get('*', (req, res) => {
 // ==========================================
 // WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
 // ==========================================
+// ==========================================
+// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
+// ==========================================
 app.post('/api/webhook/pos-events', async (req, res) => {
+  const client = await pool.connect();
   try {
     const payload = req.body || {};
     const eventType = req.headers['x-event-type'] || payload.event || payload.type || 'unknown';
     console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Data:', JSON.stringify(payload));
 
-    // Xử lý sự kiện đơn hàng realtime (order.created / order.completed)
-    if (eventType.includes('order') || payload.order_no || payload.orderNo) {
-      const orderNo = payload.order_no || payload.orderNo;
-      const phone = payload.customer_phone || payload.phone;
-      const totalAmount = Number(payload.total_amount || payload.total || 0);
-      const items = payload.items || payload.products || [];
+    const orderNo = payload.order_no || payload.orderNo || payload.code || payload.order_code;
+    const rawPhone = payload.customer_phone || payload.phone || (payload.customer && payload.customer.phone);
+    const storeCode = payload.store_code || payload.branch_code || 'XT';
+    const items = payload.items || payload.products || payload.line_items || [];
+    const discounts = payload.discounts || payload.discount_codes || payload.promotions || [];
 
-      // Ghi log đơn hàng
-      console.log();
-    }
+    if (rawPhone) {
+      const cleanPhone = String(rawPhone).trim().replace(/^(\+84|84)/, '0');
+      await client.query('BEGIN');
 
-    // Xử lý sự kiện sản phẩm cập nhật realtime (product.updated / product.created)
-    if (eventType.includes('product') || payload.item_code || payload.barcode) {
-      const itemCode = payload.item_code || payload.sku;
-      const barcode = payload.barcode;
-      const price = payload.price;
-      const name = payload.name;
-      console.log();
+      // 1. Tìm hoặc tự động tạo customer
+      let custRes = await client.query('SELECT * FROM customers WHERE phone = $1', [cleanPhone]);
+      let custId;
+      if (custRes.rows.length === 0) {
+        const defaultPinHash = await bcrypt.hash('123456', 10);
+        const newCust = await client.query(
+          `INSERT INTO customers (phone, pin_hash, status, must_change_pin)
+           VALUES ($1, $2, 'active', TRUE) RETURNING id`,
+          [cleanPhone, defaultPinHash]
+        );
+        custId = newCust.rows[0].id;
+      } else {
+        custId = custRes.rows[0].id;
+      }
+
+      // Lấy chương trình đang active
+      const progRes = await client.query('SELECT * FROM programs WHERE status = $1 LIMIT 1', ['active']);
+      const activeProg = progRes.rows[0];
+
+      // CASE 1: KIỂM TRA ĐƠN HÀNG CÓ MUA THẺ NBT KHÔNG -> KÍCH HOẠT THẺ
+      const cardItem = items.find(it => {
+        const sku = String(it.sku || it.item_code || it.product_code || '').toUpperCase();
+        const barcode = String(it.barcode || '');
+        const name = String(it.name || it.product_name || '').toUpperCase();
+        return (activeProg && (sku === activeProg.item_code || barcode === activeProg.barcode)) ||
+               sku.includes('NBT') || barcode.includes('8936000000018') || name.includes('THẺ NBT') || name.includes('SAKUKO DAILY');
+      });
+
+      if (cardItem) {
+        const checkCard = await client.query(
+          `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
+          [custId]
+        );
+        if (checkCard.rows.length === 0) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const usableFromStr = tomorrow.toISOString().split('T')[0];
+          const progId = activeProg ? activeProg.id : 1;
+
+          await client.query(
+            `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
+             VALUES ($1, $2, $3, $4, 'active', 0, $5)`,
+            [custId, progId, storeCode, usableFromStr, orderNo || null]
+          );
+
+          await client.query(
+            `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+            ['WEBHOOK_POS', 'CARD_PURCHASE_ACTIVATED', `customer:${cleanPhone}`, JSON.stringify({ orderNo, storeCode, cardItem })]
+          );
+          console.log(`[WEBHOOK ACTIVATED CARD] SĐT: ${cleanPhone}, Đơn: ${orderNo}`);
+        }
+      }
+
+      // CASE 2: KIỂM TRA ĐƠN HÀNG CÓ SỬ DỤNG VOUCHER NBT KHÔNG -> TĂNG LƯỢT DÙNG (DÙNG ĐỂ TÍNH TIẾP LƯỢT TIẾP THEO)
+      const hasNbtVoucher = discounts.some(d => {
+        const code = String(d.code || d.voucher_code || d.name || '').toUpperCase();
+        return code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT');
+      }) || items.some(it => {
+        const sku = String(it.sku || it.item_code || '').toUpperCase();
+        return sku.includes('DAILY5K') || sku.includes('DAILY10K');
+      });
+
+      if (hasNbtVoucher) {
+        const cardRes = await client.query(
+          `SELECT * FROM cards WHERE customer_id = $1 AND status = 'active' ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+          [custId]
+        );
+        if (cardRes.rows.length > 0) {
+          const card = cardRes.rows[0];
+          const newUsesCount = Number(card.uses_count) + 1;
+          const isBig = (newUsesCount === 5 || newUsesCount === 10);
+          const discountVal = isBig ? 10000 : 5000;
+          const voucherCode = isBig ? (activeProg?.voucher_10k || 'DAILY10K') : (activeProg?.voucher_5k || 'DAILY5K');
+          const newStatus = newUsesCount >= 10 ? 'used_up' : 'active';
+
+          // Ghi nhận lượt sử dụng vào redemptions
+          await client.query(
+            `INSERT INTO redemptions (card_id, customer_id, use_no, order_no, discount, store_code, voucher_code, source, valid)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'webhook', true)`,
+            [card.id, custId, newUsesCount, orderNo || 'POS_WEBHOOK', discountVal, storeCode, voucherCode]
+          );
+
+          // Cập nhật lượt và trạng thái thẻ
+          await client.query(
+            `UPDATE cards SET uses_count = $1, status = $2, updated_at = NOW() WHERE id = $3`,
+            [newUsesCount, newStatus, card.id]
+          );
+
+          await client.query(
+            `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+            ['WEBHOOK_POS', 'VOUCHER_REDEEMED', `card:${card.id}`, JSON.stringify({ orderNo, newUsesCount, discountVal, storeCode })]
+          );
+          console.log(`[WEBHOOK REDEEMED VOUCHER] SĐT: ${cleanPhone}, Lượt: #${newUsesCount}, Trạng thái: ${newStatus}`);
+        }
+      }
+
+      await client.query('COMMIT');
     }
 
     return res.status(200).json({ ok: true, received_at: new Date().toISOString() });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[WEBHOOK ERROR]', err);
     return res.status(500).json({ ok: false, error: err.message });
+  } finally {
+    client.release();
   }
 });
 
