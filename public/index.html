@@ -232,7 +232,7 @@
               </div>
               <h2 id="cardProgramName" class="text-base font-bold mt-1.5 text-white">Thẻ Ưu Đãi 10 Lượt</h2>
             </div>
-            <span id="cardStatusBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm">
+            <span id="cardStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm whitespace-nowrap shrink-0">
               Đang hoạt động
             </span>
           </div>
@@ -798,10 +798,10 @@
           const isActive = card.status === 'active';
           const isUsedUp = card.status === 'used_up' || uses >= 10;
           const statusBadge = isActive 
-            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Đang hoạt động</span>'
+            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap shrink-0 inline-block">Đang hoạt động</span>'
             : isUsedUp 
-              ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">Đã dùng hết 10 lượt</span>'
-              : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-[#C82B5F]">Hết hạn</span>';
+              ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600 whitespace-nowrap shrink-0 inline-block">Đã dùng hết 10 lượt</span>'
+              : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-[#C82B5F] whitespace-nowrap shrink-0 inline-block">Hết hạn</span>';
 
           const div = document.createElement('div');
           div.className = 'p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg space-y-3';
