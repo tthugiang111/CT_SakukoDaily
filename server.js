@@ -28,10 +28,13 @@ app.use(cookieParser());
 app.use(cors());
 
 // Static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Chặn truy cập trực tiếp file admin.html tĩnh khi chưa xác thực Lark Admin
+app.get('/admin.html', (req, res) => {
+  return res.redirect('/admin');
+});
 
-// Route kiểm soát truy cập Cổng Quản Trị Admin
-app.get('/admin', (req, res) => {
+// Middleware kiểm tra quyền admin cho mọi request vào /admin
+const adminAuthGuard = (req, res, next) => {
   const token = req.cookies.nbt_admin_token;
   if (!token) {
     return res.sendFile(path.join(__dirname, 'public', 'admin_login.html'));
@@ -41,11 +44,23 @@ app.get('/admin', (req, res) => {
     if (!['admin_ho', 'store_manager'].includes(decoded.role)) {
       return res.sendFile(path.join(__dirname, 'public', 'admin_login.html'));
     }
-    return res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    req.admin = decoded;
+    return next();
   } catch (err) {
     return res.sendFile(path.join(__dirname, 'public', 'admin_login.html'));
   }
+};
+
+app.get('/admin', adminAuthGuard, (req, res) => {
+  return res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
+
+// Static files (sau khi đã chặn route admin)
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false // Không tự động index
+}));
+
+
 
 app.get('/api/admin/logout', (req, res) => {
   res.clearCookie('nbt_admin_token', { path: '/' });
@@ -784,7 +799,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
   const cookieState = req.cookies.lark_oauth_state;
 
   if (!code) {
-    return res.status(400).send('<h3>Đăng nhập Lark thất bại: Thiếu mã code</h3><p><a href="/admin.html">Quay lại</a></p>');
+    return res.status(400).send('<h3>Đăng nhập Lark thất bại: Thiếu mã code</h3><p><a href="/admin">Quay lại</a></p>');
   }
 
   try {
@@ -797,7 +812,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
     const appData = await appRes.json();
     if (appData.code !== 0) {
       console.error('[Lark App Token Error]', appData);
-      return res.status(403).send(`<h3>Lỗi xác thực Lark App: ${appData.msg}</h3><p><a href="/admin.html">Quay lại</a></p>`);
+      return res.status(403).send(`<h3>Lỗi xác thực Lark App: ${appData.msg}</h3><p><a href="/admin">Quay lại</a></p>`);
     }
 
     // 2. Đổi code lấy user access token
@@ -815,7 +830,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
     const tokenData = await tokenRes.json();
     if (tokenData.code !== 0) {
       console.error('[Lark User Token Error]', tokenData);
-      return res.status(403).send(`<h3>Lỗi xác thực Lark: ${tokenData.msg}</h3><p><a href="/admin.html">Quay lại</a></p>`);
+      return res.status(403).send(`<h3>Lỗi xác thực Lark: ${tokenData.msg}</h3><p><a href="/admin">Quay lại</a></p>`);
     }
 
     // 3. Lấy thông tin user
@@ -827,7 +842,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
     const userData = await userRes.json();
     if (userData.code !== 0) {
       console.error('[Lark User Info Error]', userData);
-      return res.status(403).send(`<h3>Lỗi lấy thông tin Lark: ${userData.msg}</h3><p><a href="/admin.html">Quay lại</a></p>`);
+      return res.status(403).send(`<h3>Lỗi lấy thông tin Lark: ${userData.msg}</h3><p><a href="/admin">Quay lại</a></p>`);
     }
 
     const { open_id, name, avatar_url } = userData.data;
@@ -840,7 +855,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
           <p>Tài khoản Lark: <b>${name || open_id}</b> không có quyền truy cập hệ thống quản trị Sakuko Daily.</p>
           <p style="font-size: 13px; color: #881337;">Hệ thống chỉ cấp quyền toàn quyền duy nhất cho Quản trị viên HO (Trần Thị Thu Giang).</p>
           <hr style="border: none; border-top: 1px solid #fecdd3; margin: 16px 0;" />
-          <a href="/admin.html" style="display: inline-block; padding: 8px 16px; background: #e11d48; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13px;">Quay lại Cổng Admin</a>
+          <a href="/admin" style="display: inline-block; padding: 8px 16px; background: #e11d48; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13px;">Quay lại Cổng Admin</a>
         </div>
       `);
     }
@@ -858,7 +873,7 @@ app.get('/api/admin/lark/callback', async (req, res) => {
     res.cookie('nbt_admin_token', token, { path: '/', httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 86400 * 1000 });
 
     // Chuyển hướng về admin.html
-    return res.redirect('/admin.html');
+    return res.redirect('/admin');
   } catch (err) {
     console.error('[Lark OAuth Error]', err);
     return res.status(500).send('<h3>Lỗi hệ thống trong quá trình đăng nhập Lark</h3>');
