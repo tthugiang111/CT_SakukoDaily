@@ -1039,6 +1039,43 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+
+// ==========================================
+// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
+// ==========================================
+app.post('/api/webhook/pos-events', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const eventType = req.headers['x-event-type'] || payload.event || payload.type || 'unknown';
+    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Data:', JSON.stringify(payload));
+
+    // Xử lý sự kiện đơn hàng realtime (order.created / order.completed)
+    if (eventType.includes('order') || payload.order_no || payload.orderNo) {
+      const orderNo = payload.order_no || payload.orderNo;
+      const phone = payload.customer_phone || payload.phone;
+      const totalAmount = Number(payload.total_amount || payload.total || 0);
+      const items = payload.items || payload.products || [];
+
+      // Ghi log đơn hàng
+      console.log();
+    }
+
+    // Xử lý sự kiện sản phẩm cập nhật realtime (product.updated / product.created)
+    if (eventType.includes('product') || payload.item_code || payload.barcode) {
+      const itemCode = payload.item_code || payload.sku;
+      const barcode = payload.barcode;
+      const price = payload.price;
+      const name = payload.name;
+      console.log();
+    }
+
+    return res.status(200).json({ ok: true, received_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[WEBHOOK ERROR]', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Web Thẻ NBT service is running at http://127.0.0.1:${PORT}`);
 });
