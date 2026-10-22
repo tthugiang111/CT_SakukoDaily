@@ -1010,10 +1010,11 @@ app.post('/api/pos/card-purchase', async (req, res) => {
       let custId;
       if (custRes.rows.length === 0) {
         const defaultPinHash = await bcrypt.hash('123456', 10);
+        const dummyRecoveryHash = await bcrypt.hash('SAKUKO' + Math.floor(Math.random() * 899999 + 100000), 10);
         const newCust = await client.query(
-          `INSERT INTO customers (phone, pin_hash, status, must_change_pin)
-           VALUES ($1, $2, 'active', TRUE) RETURNING id`,
-          [cleanPhone, defaultPinHash]
+          `INSERT INTO customers (phone, pin_hash, recovery_code_hash, status, must_change_pin)
+           VALUES ($1, $2, $3, 'active', TRUE) RETURNING id`,
+          [cleanPhone, defaultPinHash, dummyRecoveryHash]
         );
         custId = newCust.rows[0].id;
       } else {
@@ -1074,9 +1075,6 @@ app.post('/api/pos/card-purchase', async (req, res) => {
 // ==========================================
 // WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
 // ==========================================
-// ==========================================
-// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
-// ==========================================
 
 // HARAVAN WEBHOOK VERIFICATION (GET)
 app.get('/api/webhook/pos-events', (req, res) => {
@@ -1094,28 +1092,50 @@ app.post('/api/webhook/pos-events', async (req, res) => {
   const client = await pool.connect();
   try {
     const payload = req.body || {};
-    const eventType = req.headers['x-event-type'] || payload.event || payload.type || 'unknown';
-    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Data:', JSON.stringify(payload));
+    const eventType = String(req.headers['x-event-type'] || payload.event || payload.type || 'unknown').toLowerCase();
+    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Order:', payload.order_number || payload.order_no || payload.id);
 
-    const orderNo = payload.order_no || payload.orderNo || payload.code || payload.order_code;
-    const rawPhone = payload.customer_phone || payload.phone || (payload.customer && payload.customer.phone);
-    const storeCode = payload.store_code || payload.branch_code || 'XT';
-    const items = payload.items || payload.products || payload.line_items || [];
-    const discounts = payload.discounts || payload.discount_codes || payload.promotions || [];
+    const orderNo = payload.order_number || payload.order_no || payload.code || payload.order_code || (payload.id ? `HRV_${payload.id}` : null);
+    
+    // Lấy SĐT từ các nguồn chuẩn của Haravan & POS
+    const customerObj = payload.customer || {};
+    const billingObj = payload.billing_address || {};
+    const shippingObj = payload.shipping_address || {};
+    const rawPhone = customerObj.phone || billingObj.phone || shippingObj.phone || payload.customer_phone || payload.phone;
 
-    if (rawPhone) {
-      const cleanPhone = String(rawPhone).trim().replace(/^(\+84|84)/, '0');
+    const storeCode = payload.location_id || payload.store_code || payload.branch_code || 'XT';
+    const items = payload.line_items || payload.items || payload.products || [];
+    const discounts = payload.discount_codes || payload.discounts || payload.promotions || [];
+
+    // Kiểm tra trạng thái đơn: Phải hoàn thành / đã thanh toán
+    const finStatus = String(payload.financial_status || '').toLowerCase();
+    const fulfillStatus = String(payload.fulfillment_status || '').toLowerCase();
+    const isPaidEvent = eventType.includes('paid') || eventType.includes('fulfilled') || eventType.includes('completed');
+    const isPaidStatus = finStatus === 'paid' || fulfillStatus === 'fulfilled' || payload.send_paid === true || payload.status === 'completed';
+    const isCancelled = payload.cancelled_at || payload.cancel_reason || finStatus === 'voided' || finStatus === 'refunded';
+
+    if (rawPhone && !isCancelled) {
+      // Chuẩn hóa và xác thực số điện thoại
+      let cleanPhone = String(rawPhone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
+      const isValidVnPhone = /^0(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone);
+
+      if (!isValidVnPhone) {
+        console.log(`[WEBHOOK SKIPPED] Số điện thoại không hợp lệ: "${rawPhone}" -> "${cleanPhone}"`);
+        return res.status(200).json({ ok: true, message: 'Số điện thoại không hợp lệ, bỏ qua' });
+      }
+
       await client.query('BEGIN');
 
-      // 1. Tìm hoặc tự động tạo customer
+      // 1. Tìm hoặc tự động tạo customer theo đúng SĐT
       let custRes = await client.query('SELECT * FROM customers WHERE phone = $1', [cleanPhone]);
       let custId;
       if (custRes.rows.length === 0) {
         const defaultPinHash = await bcrypt.hash('123456', 10);
+        const dummyRecoveryHash = await bcrypt.hash('SAKUKO' + Math.floor(Math.random() * 899999 + 100000), 10);
         const newCust = await client.query(
-          `INSERT INTO customers (phone, pin_hash, status, must_change_pin)
-           VALUES ($1, $2, 'active', TRUE) RETURNING id`,
-          [cleanPhone, defaultPinHash]
+          `INSERT INTO customers (phone, pin_hash, recovery_code_hash, status, must_change_pin)
+           VALUES ($1, $2, $3, 'active', TRUE) RETURNING id`,
+          [cleanPhone, defaultPinHash, dummyRecoveryHash]
         );
         custId = newCust.rows[0].id;
       } else {
@@ -1126,41 +1146,56 @@ app.post('/api/webhook/pos-events', async (req, res) => {
       const progRes = await client.query('SELECT * FROM programs WHERE status = $1 LIMIT 1', ['active']);
       const activeProg = progRes.rows[0];
 
-      // CASE 1: KIỂM TRA ĐƠN HÀNG CÓ MUA THẺ NBT KHÔNG -> KÍCH HOẠT THẺ
+      // CASE 1: KIỂM TRA ĐƠN HÀNG CÓ MÃ BARCODE RTD.TP00013 -> KÍCH HOẠT THẺ
+      // Điều kiện: Đơn phải ở trạng thái đã thanh toán / hoàn thành (isPaidStatus hoặc isPaidEvent)
+      const isEligibleToActivate = isPaidStatus || isPaidEvent || !payload.financial_status; // fallback nếu pos không gửi financial_status
+
       const cardItem = items.find(it => {
-        const sku = String(it.sku || it.item_code || it.product_code || '').toUpperCase();
-        const barcode = String(it.barcode || '');
-        const name = String(it.name || it.product_name || '').toUpperCase();
-        return (activeProg && (sku === activeProg.item_code || barcode === activeProg.barcode)) ||
-               sku.includes('NBT') || barcode.includes('8936000000018') || name.includes('THẺ NBT') || name.includes('SAKUKO DAILY');
+        const barcode = String(it.barcode || '').trim().toUpperCase();
+        const sku = String(it.sku || it.item_code || it.product_code || '').trim().toUpperCase();
+        const name = String(it.name || it.title || it.product_name || '').toUpperCase();
+        return barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
+               barcode === '8936000000018' || sku === 'SP_NBT_XUANTHUY' ||
+               name.includes('RTD.TP00013') || name.includes('SAKUKO DAILY') || name.includes('THẺ NBT');
       });
 
       if (cardItem) {
-        const checkCard = await client.query(
-          `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
-          [custId]
-        );
-        if (checkCard.rows.length === 0) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          const usableFromStr = tomorrow.toISOString().split('T')[0];
-          const progId = activeProg ? activeProg.id : 1;
-
-          await client.query(
-            `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
-             VALUES ($1, $2, $3, $4, 'active', 0, $5)`,
-            [custId, progId, storeCode, usableFromStr, orderNo || null]
+        if (!isEligibleToActivate) {
+          console.log(`[WEBHOOK HOLD] Đơn ${orderNo} có barcode RTD.TP00013 nhưng chưa hoàn thành thanh toán (financial_status: ${finStatus})`);
+        } else {
+          const checkCard = await client.query(
+            `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
+            [custId]
           );
+          if (checkCard.rows.length === 0) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const usableFromStr = tomorrow.toISOString().split('T')[0];
+            const progId = activeProg ? activeProg.id : 1;
 
-          await client.query(
-            `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
-            ['WEBHOOK_POS', 'CARD_PURCHASE_ACTIVATED', `customer:${cleanPhone}`, JSON.stringify({ orderNo, storeCode, cardItem })]
-          );
-          console.log(`[WEBHOOK ACTIVATED CARD] SĐT: ${cleanPhone}, Đơn: ${orderNo}`);
+            const insertedCard = await client.query(
+              `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
+               VALUES ($1, $2, $3, $4, 'active', 0, $5) RETURNING id`,
+              [custId, progId, storeCode, usableFromStr, orderNo || null]
+            );
+
+            await client.query(
+              `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+              ['HARAVAN_WEBHOOK', 'CARD_ACTIVATED_BARCODE', `customer:${cleanPhone}`, JSON.stringify({
+                orderNo,
+                barcode: cardItem.barcode || cardItem.sku || 'RTD.TP00013',
+                financial_status: finStatus || 'paid',
+                cardId: insertedCard.rows[0].id
+              })]
+            );
+            console.log(`[WEBHOOK ACTIVATED CARD] SĐT: ${cleanPhone}, Đơn: ${orderNo}, Barcode: RTD.TP00013, Status: PAID`);
+          } else {
+            console.log(`[WEBHOOK INFO] Khách ${cleanPhone} đã có thẻ active (${checkCard.rows[0].id}), không tạo trùng`);
+          }
         }
       }
 
-      // CASE 2: KIỂM TRA ĐƠN HÀNG CÓ SỬ DỤNG VOUCHER NBT KHÔNG -> TĂNG LƯỢT DÙNG (DÙNG ĐỂ TÍNH TIẾP LƯỢT TIẾP THEO)
+      // CASE 2: KIỂM TRA ĐƠN HÀNG CÓ SỬ DỤNG VOUCHER NBT KHÔNG -> TĂNG LƯỢT DÙNG
       const hasNbtVoucher = discounts.some(d => {
         const code = String(d.code || d.voucher_code || d.name || '').toUpperCase();
         return code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT');
@@ -1169,7 +1204,7 @@ app.post('/api/webhook/pos-events', async (req, res) => {
         return sku.includes('DAILY5K') || sku.includes('DAILY10K');
       });
 
-      if (hasNbtVoucher) {
+      if (hasNbtVoucher && isEligibleToActivate) {
         const cardRes = await client.query(
           `SELECT * FROM cards WHERE customer_id = $1 AND status = 'active' ORDER BY id DESC LIMIT 1 FOR UPDATE`,
           [custId]
@@ -1182,14 +1217,12 @@ app.post('/api/webhook/pos-events', async (req, res) => {
           const voucherCode = isBig ? (activeProg?.voucher_10k || 'DAILY10K') : (activeProg?.voucher_5k || 'DAILY5K');
           const newStatus = newUsesCount >= 10 ? 'used_up' : 'active';
 
-          // Ghi nhận lượt sử dụng vào redemptions
           await client.query(
             `INSERT INTO redemptions (card_id, customer_id, use_no, order_no, discount, store_code, voucher_code, source, valid)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'webhook', true)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'haravan_webhook', true)`,
             [card.id, custId, newUsesCount, orderNo || 'POS_WEBHOOK', discountVal, storeCode, voucherCode]
           );
 
-          // Cập nhật lượt và trạng thái thẻ
           await client.query(
             `UPDATE cards SET uses_count = $1, status = $2, updated_at = NOW() WHERE id = $3`,
             [newUsesCount, newStatus, card.id]
@@ -1197,7 +1230,7 @@ app.post('/api/webhook/pos-events', async (req, res) => {
 
           await client.query(
             `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
-            ['WEBHOOK_POS', 'VOUCHER_REDEEMED', `card:${card.id}`, JSON.stringify({ orderNo, newUsesCount, discountVal, storeCode })]
+            ['HARAVAN_WEBHOOK', 'VOUCHER_REDEEMED', `card:${card.id}`, JSON.stringify({ orderNo, newUsesCount, discountVal, storeCode })]
           );
           console.log(`[WEBHOOK REDEEMED VOUCHER] SĐT: ${cleanPhone}, Lượt: #${newUsesCount}, Trạng thái: ${newStatus}`);
         }
