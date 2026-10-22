@@ -501,7 +501,7 @@
       const prog = (availablePrograms && availablePrograms.find(p => p.id === progId)) || activeProgram;
       if (!prog) return alert('Chưa có thông tin chương trình!');
       selectedProgramToBuy = prog;
-      const barcode = prog.barcode || '2000000000018';
+      const barcode = prog.barcode || 'RTD.TP00013';
       document.getElementById('buyModalBarcodeText').innerText = barcode;
       try {
         JsBarcode('#buyBarcodeSvg', barcode, {
@@ -1026,7 +1026,7 @@
       <!-- Khung Barcode -->
       <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
         <span class="text-[11px] font-bold text-slate-500 block">MÃ BARCODE MUA HÀNG:</span>
-        <div class="font-mono text-xl font-black text-slate-900 tracking-widest" id="buyModalBarcodeText">2000000000018</div>
+        <div class="font-mono text-xl font-black text-slate-900 tracking-widest" id="buyModalBarcodeText">RTD.TP00013</div>
         <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
           <svg id="buyBarcodeSvg" class="w-full max-h-20"></svg>
         </div>
