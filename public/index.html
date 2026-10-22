@@ -185,49 +185,7 @@
       <!-- ============================================ -->
       <div id="screenCustomerHome" class="hidden space-y-4 pb-20">
 
-        <!-- THANH ĐIỀU HƯỚNG TABS CHO KHÁCH HÀNG -->
-        <div class="flex items-center justify-around bg-slate-200/80 p-1 rounded-2xl text-xs font-bold text-slate-600 shadow-inner">
-          <button id="custTabBtn-home" onclick="switchCustTab('home')" class="flex-1 py-2 rounded-xl sakuko-tab-btn active bg-white text-rose-600 shadow-sm transition">
-            <i class="fa-solid fa-ticket mr-1"></i> 10 Lượt
-          </button>
-          <button id="custTabBtn-history" onclick="switchCustTab('history')" class="flex-1 py-2 rounded-xl sakuko-tab-btn text-slate-600 hover:text-slate-900 transition">
-            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Lịch Sử
-          </button>
-          <button id="custTabBtn-wallet" onclick="switchCustTab('wallet')" class="flex-1 py-2 rounded-xl sakuko-tab-btn text-slate-600 hover:text-slate-900 transition">
-            <i class="fa-solid fa-wallet mr-1"></i> Ví Thẻ
-          </button>
-        </div>
-
-        <div id="custTabContent-home" class="space-y-4">
         
-        <!-- THẺ THÀNH VIÊN VIRTUAL SAKUKO DAILY (SANG TRỌNG) -->
-        <div id="cardSection" class="rounded-3xl p-5 sakuko-card-bg text-white shadow-xl relative overflow-hidden">
-          <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-          
-          <div class="flex justify-between items-start mb-4">
-            <div>
-              <div class="flex items-center space-x-1.5">
-                <span class="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/20">
-                  SAKUKO DAILY
-                </span>
-                <span class="text-[10px] text-rose-200 font-medium">CVS Xuân Thủy</span>
-              </div>
-              <h2 id="cardProgramName" class="text-base font-bold mt-1.5 text-white">Thẻ Ưu Đãi 10 Lượt</h2>
-            </div>
-            <span id="cardStatusBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm">
-              Đang hoạt động
-            </span>
-          </div>
-
-          <!-- Thanh tiến độ -->
-          <div class="bg-black/25 rounded-2xl p-3 mb-3.5 backdrop-blur-sm border border-white/10">
-            <div class="flex justify-between text-xs font-medium mb-1.5">
-              <span class="text-rose-100">Tiến độ sử dụng</span>
-              <span id="cardProgressText" class="font-extrabold text-amber-300">0 / 10 lượt</span>
-            </div>
-            <div class="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
-              <div id="cardProgressBar" class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
           </div>
 
           <!-- Lưới 10 ô tem tích điểm phong cách Sakuko -->
