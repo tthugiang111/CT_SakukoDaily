@@ -1034,18 +1034,27 @@ app.post('/api/pos/card-purchase', async (req, res) => {
   }
 });
 
-// Fallback SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+
+
+// ==========================================
+// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
+// ==========================================
+// ==========================================
+// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
+// ==========================================
+
+// HARAVAN WEBHOOK VERIFICATION (GET)
+app.get('/api/webhook/pos-events', (req, res) => {
+  const challenge = req.query['hub.challenge'] || req.query.challenge;
+  const verifyToken = req.query['hub.verify_token'] || req.query.verify_token || req.query.token;
+  console.log('[HARAVAN WEBHOOK VERIFY GET]', req.query);
+
+  if (challenge) {
+    return res.status(200).send(challenge);
+  }
+  return res.status(200).send('OK');
 });
 
-
-// ==========================================
-// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
-// ==========================================
-// ==========================================
-// WEBHOOK CALLBACK: REALTIME ORDERS & PRODUCTS
-// ==========================================
 app.post('/api/webhook/pos-events', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1170,6 +1179,11 @@ app.post('/api/webhook/pos-events', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// Fallback SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, '127.0.0.1', () => {
