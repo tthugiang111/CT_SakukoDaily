@@ -893,14 +893,20 @@
 
           <!-- Thể lệ -->
           <div id="programDetail-${p.id}" class="hidden p-3.5 pt-0 space-y-3 border-t border-slate-200/60 bg-white">
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1 mt-2.5">
-              <div class="font-bold text-slate-800 text-xs mb-1 flex items-center">
+            <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-700 space-y-2 mt-2.5 leading-relaxed">
+              <div class="font-bold text-slate-900 text-xs mb-1.5 flex items-center">
                 <i class="fa-solid fa-circle-info text-[#E0376F] mr-1.5"></i> Thể lệ chương trình:
               </div>
-              <p>• <b>Gói ưu đãi:</b> 10 lần mua hàng (Lượt 1–4 & 6–9 giảm 5.000đ; Lượt 5 & 10 giảm 10.000đ).</p>
-              <p>• <b>Đơn tối thiểu:</b> Từ ${aovMinFormatted} sau khi trừ các khuyến mãi khác.</p>
-              <p>• <b>Quy tắc sử dụng:</b> Tối đa 1 lượt/ngày. Mua hôm nay, từ ngày mai bắt đầu dùng.</p>
-              <p>• <b>Thời hạn:</b> Áp dụng đến hết ngày ${new Date(p.end_date).toLocaleDateString('vi-VN')}.</p>
+              <p><b>1. Điều kiện hóa đơn:</b> Áp dụng cho mỗi hóa đơn thanh toán từ 20.000đ trở lên.</p>
+              <div>
+                <p><b>2. Quy định tần suất & Chống gian lận:</b></p>
+                <p class="pl-3.5 text-slate-600">• Mỗi thẻ chỉ áp dụng tối đa 01 lần / 01 hóa đơn / 01 ngày.</p>
+                <p class="pl-3.5 text-slate-600">• Tuyệt đối không áp dụng tách hóa đơn trong cùng một lượt mua hàng để trừ nhiều ô.</p>
+              </div>
+              <p><b>3. Thời hạn sử dụng:</b> Thẻ có giá trị trong vòng 60 ngày kể từ ngày phát hành. Sau thời gian này, các ô chưa sử dụng sẽ không còn giá trị.</p>
+              <p><b>4. Quy đổi:</b> Ưu đãi được trừ trực tiếp vào hóa đơn thanh toán, không có giá trị quy đổi thành tiền mặt và không hoàn lại tiền thừa.</p>
+              <p><b>5. Bảo quản thẻ:</b> Thẻ phát hành dưới dạng thẻ vật lý có định danh khách hàng bằng số điện thoại. Khách hàng vui lòng tự bảo quản thẻ. Sakuko không cấp lại thẻ trong trường hợp thẻ bị mất, rách hoặc mờ dấu tích lũy.</p>
+              <p><b>6. Đồng thời áp dụng:</b> Chỉ áp dụng đồng thời với CTKM giảm giá trực tiếp trên sản phẩm; <b>KHÔNG</b> áp dụng đồng thời với các Voucher giảm giá trên tổng hóa đơn khác.</p>
             </div>
 
             <div>
