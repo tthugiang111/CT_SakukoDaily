@@ -433,43 +433,6 @@
           tableBody.appendChild(tr);
         }
       }
-
-
-      const activeArea = document.getElementById('voucherActiveArea');
-      const usedNotice = document.getElementById('voucherUsedNotice');
-      const newWaitNotice = document.getElementById('cardNewWaitNotice');
-
-      activeArea.classList.add('hidden');
-      usedNotice.classList.add('hidden');
-      newWaitNotice.classList.add('hidden');
-
-      const isWaitNextDay = new Date() < new Date(card.usable_from);
-
-      if (isWaitNextDay) {
-        newWaitNotice.classList.remove('hidden');
-      } else if (data.usedToday) {
-        usedNotice.classList.remove('hidden');
-      } else if (data.nextVoucher) {
-        activeArea.classList.remove('hidden');
-        const v = data.nextVoucher;
-        document.getElementById('voucherTitle').innerText = `Lượt ${v.useNo}: Giảm ${v.discount.toLocaleString()}đ (Đơn từ ${v.aovMin.toLocaleString()}đ)`;
-        document.getElementById('voucherCodeText').innerText = v.voucherCode;
-        document.getElementById('voucherCustomerPhone').innerText = currentCustomer.phone;
-
-        try {
-          JsBarcode("#barcodeCanvas", v.voucherCode, {
-            format: "CODE128",
-            lineColor: "#0f172a",
-            width: 2,
-            height: 48,
-            displayValue: false
-          });
-        } catch (err) {
-          console.error(err);
-        }
-      } else {
-        voucherSec.classList.add('hidden');
-      }
     }
 
     
