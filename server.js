@@ -27,6 +27,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors());
 
+// GLOBAL REQUEST LOGGER FOR WEBHOOK DEBUGGING
+app.use((req, res, next) => {
+  if (req.path.includes('webhook') || req.method === 'POST') {
+    console.log(`[REQ ${req.method}] ${req.path} - Headers:`, {
+      'x-haravan-topic': req.headers['x-haravan-topic'],
+      'x-event-type': req.headers['x-event-type'],
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent']
+    });
+  }
+  next();
+});
+
 // Static files
 // Chặn truy cập trực tiếp file admin.html tĩnh khi chưa xác thực Lark Admin
 app.get('/admin.html', (req, res) => {
@@ -325,6 +338,58 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
 });
 
 // Mua thẻ
+
+// API GIẢ LẬP KÍCH HOẠT THẺ NHANH & DÙNG ĐƯỢC NGAY
+app.post('/api/customer/fast-activate-card', custAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const custId = req.customer.id;
+    const phone = req.customer.phone;
+
+    await client.query('BEGIN');
+
+    // Lấy chương trình đang active
+    const progRes = await client.query("SELECT * FROM programs WHERE status = 'active' ORDER BY id DESC LIMIT 1");
+    const prog = progRes.rows[0];
+    const progId = prog ? prog.id : 1;
+
+    // Hủy hoặc đánh dấu hoàn tất các thẻ cũ nếu có để tạo thẻ mới tinh
+    await client.query(
+      `UPDATE cards SET status = 'cancelled', updated_at = NOW() 
+       WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
+      [custId]
+    );
+
+    // Tua thời gian: usable_from là ngày hôm qua để hôm nay dùng được ngay lượt 1
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const usableFromStr = yesterday.toISOString().split('T')[0];
+
+    const cardRes = await client.query(
+      `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no, created_at)
+       VALUES ($1, $2, 'XT', $3, 'active', 0, $4, NOW() - INTERVAL '1 day') RETURNING *`,
+      [custId, progId, usableFromStr, 'SIMULATED_TEST_' + Math.floor(Math.random() * 899999 + 100000)]
+    );
+
+    await client.query(
+      `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+      ['TEST_CLIENT_SIMULATOR', 'FAST_ACTIVATE_CARD', `customer:${phone}`, JSON.stringify({ cardId: cardRes.rows[0].id })]
+    );
+
+    await client.query('COMMIT');
+    return res.json({
+      ok: true,
+      message: 'Giả lập kích hoạt thẻ thành công! Lượt #1 đã sẵn sàng để quét ưu đãi ngay hôm nay.',
+      card: cardRes.rows[0]
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    return res.status(500).json({ ok: false, error: 'Lỗi kích hoạt thẻ giả lập: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/customer/buy-card', customerAuth, async (req, res) => {
   try {
     const custId = req.customer.id;
@@ -1093,7 +1158,7 @@ app.post('/api/webhook/pos-events', async (req, res) => {
   try {
     const payload = req.body || {};
     const eventType = String(req.headers['x-event-type'] || payload.event || payload.type || 'unknown').toLowerCase();
-    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Order:', payload.order_number || payload.order_no || payload.id);
+    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Order:', payload.order_number || payload.order_no || payload.id, 'Data:', JSON.stringify(payload));
 
     const orderNo = payload.order_number || payload.order_no || payload.code || payload.order_code || (payload.id ? `HRV_${payload.id}` : null);
     
