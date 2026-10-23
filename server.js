@@ -1297,9 +1297,8 @@ app.post('/api/webhook/pos-events', async (req, res) => {
             const progId = activeProg ? activeProg.id : 1;
 
             const insertedCard = await client.query(
-              `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
-               VALUES ($1, $2, $3, CURRENT_DATE, 'active', 0, $5) RETURNING id`,
-              [custId, progId, storeCode, usableFromStr, orderNo || null]
+              `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no) VALUES ($1, $2, $3, CURRENT_DATE, 'active', 0, $4) RETURNING id`,
+              [custId, progId, storeCode, orderNo || null]
             );
 
             await client.query(
@@ -1376,6 +1375,113 @@ app.post('/api/webhook/pos-events', async (req, res) => {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+
+// ==========================================
+// CƠ CHẾ DỰ PHÒNG: TỰ ĐỘNG ĐỒNG BỘ ĐƠN HÀNG TỪ HARAVAN QUA TOKEN
+// ==========================================
+const HARAVAN_PRIVATE_TOKEN = '596EE140311D1CC2AE8A1C6DF8E9E4E7F5F0A2D53B7A49C414F23069BDF58434';
+let isSyncingHaravan = false;
+
+async function syncRecentHaravanOrders() {
+  if (isSyncingHaravan) return;
+  isSyncingHaravan = true;
+  try {
+    const url = 'https://apis.haravan.com/com/orders.json?limit=20';
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${HARAVAN_PRIVATE_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const orders = data.orders || [];
+
+    for (const order of orders) {
+      const items = order.line_items || [];
+      const hasCardBarcode = items.some(it => {
+        const b = String(it.barcode || '').trim();
+        const s = String(it.sku || '').trim();
+        return b === '2025041800002' || s === '2025041800002' || b === 'RTD.TP00013' || s === 'RTD.TP00013';
+      });
+
+      if (!hasCardBarcode) continue;
+
+      const finStatus = String(order.financial_status || '').toLowerCase();
+      const fulfillStatus = String(order.fulfillment_status || '').toLowerCase();
+      const isPaid = finStatus === 'paid' || fulfillStatus === 'fulfilled';
+      if (!isPaid) continue;
+
+      const cust = order.customer || order.billing_address || order.shipping_address || {};
+      const rawPhone = cust.phone;
+      if (!rawPhone) continue;
+
+      const cleanPhone = String(rawPhone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
+      if (!/^0(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone)) continue;
+
+      // Kích hoạt qua handler nội bộ
+      const client = await pool.connect();
+      try {
+        await client.query('SET search_path TO the_nbt;');
+        const custRes = await client.query('SELECT id FROM customers WHERE phone = $1', [cleanPhone]);
+        let custId;
+        if (custRes.rows.length === 0) {
+          const defaultPinHash = await bcrypt.hash('123456', 10);
+          const dummyRecoveryHash = await bcrypt.hash('SAKUKO' + Math.floor(Math.random() * 899999 + 100000), 10);
+          const newCust = await client.query(
+            `INSERT INTO customers (phone, pin_hash, recovery_code_hash, status)
+             VALUES ($1, $2, $3, 'active') RETURNING id`,
+            [cleanPhone, defaultPinHash, dummyRecoveryHash]
+          );
+          custId = newCust.rows[0].id;
+        } else {
+          custId = custRes.rows[0].id;
+        }
+
+        const checkCard = await client.query(
+          `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
+          [custId]
+        );
+
+        if (checkCard.rows.length === 0) {
+          const progRes = await client.query("SELECT id FROM programs WHERE status = 'active' LIMIT 1");
+          const progId = progRes.rows.length > 0 ? progRes.rows[0].id : 1;
+          const storeCode = order.location_id || 'XT';
+          const orderNo = order.order_number || ('HRV_' + order.id);
+
+          const insertedCard = await client.query(
+            `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
+             VALUES ($1, $2, $3, CURRENT_DATE, 'active', 0, $4) RETURNING id`,
+            [custId, progId, storeCode, orderNo]
+          );
+
+          await client.query(
+            `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+            ['HARAVAN_REALTIME_SYNC', 'CARD_ACTIVATED_BARCODE', `customer:${cleanPhone}`, JSON.stringify({
+              orderNo,
+              barcode: '2025041800002',
+              financial_status: finStatus,
+              cardId: insertedCard.rows[0].id
+            })]
+          );
+          console.log(`[REALTIME SYNC ACTIVATED] SĐT: ${cleanPhone}, Đơn: ${orderNo}`);
+        }
+      } catch (err) {
+        console.error('[SYNC ORDER ERR]', err.message);
+      } finally {
+        client.release();
+      }
+    }
+  } catch (e) {
+    console.error('[SYNC HARAVAN ERR]', e.message);
+  } finally {
+    isSyncingHaravan = false;
+  }
+}
+
+// Chạy quét đồng bộ mỗi 30 giây
+setInterval(syncRecentHaravanOrders, 30 * 1000);
 
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Web Thẻ NBT service is running at http://127.0.0.1:${PORT}`);
