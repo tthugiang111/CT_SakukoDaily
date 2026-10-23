@@ -143,6 +143,70 @@ function adminAuth(req, res, next) {
 // ==========================================
 
 // Đăng ký / Đăng nhập
+
+// ĐĂNG NHẬP NHANH CHỈ BẰNG SỐ ĐIỆN THOẠI (BỎ PIN VÀ MÃ KHÔI PHỤC)
+app.post('/api/auth/phone-login', async (req, res) => {
+  try {
+    let { phone } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, error: 'Vui lòng nhập số điện thoại' });
+
+    phone = String(phone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
+    if (!/^0(3|5|7|8|9)[0-9]{8}$/.test(phone)) {
+      return res.status(400).json({ ok: false, error: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('SET search_path TO the_nbt;');
+      let userRes = await client.query('SELECT * FROM customers WHERE phone = $1', [phone]);
+      let cust;
+
+      if (userRes.rows.length === 0) {
+        // Tự động tạo khách hàng mới
+        const dummyPinHash = await bcrypt.hash('123456', 10);
+        const dummyRecHash = await bcrypt.hash('SAKUKO' + Math.floor(Math.random() * 899999 + 100000), 10);
+        const newCust = await client.query(
+          `INSERT INTO customers (phone, pin_hash, recovery_code_hash, status)
+           VALUES ($1, $2, $3, 'active') RETURNING id, phone, status, created_at`,
+          [phone, dummyPinHash, dummyRecHash]
+        );
+        cust = newCust.rows[0];
+      } else {
+        cust = userRes.rows[0];
+        if (cust.status === 'locked') {
+          return res.status(403).json({ ok: false, error: 'Tài khoản đã bị tạm khóa. Vui lòng liên hệ hotline Sakuko.' });
+        }
+      }
+
+      const token = jwt.sign({ id: cust.id, phone: cust.phone, role: 'customer' }, JWT_SECRET, { expiresIn: '90d' });
+      res.cookie('nbt_token', token, { httpOnly: true, maxAge: 90 * 24 * 3600 * 1000, sameSite: 'lax' });
+
+      // Kiểm tra xem khách có thẻ đang hoạt động không
+      const cardRes = await client.query(
+        `SELECT c.*, p.name as program_name, p.end_date, p.voucher_5k, p.voucher_10k
+         FROM cards c
+         JOIN programs p ON c.program_id = p.id
+         WHERE c.customer_id = $1 AND c.status IN ('active', 'pending_active')
+         ORDER BY c.id DESC LIMIT 1`,
+        [cust.id]
+      );
+
+      const hasCard = cardRes.rows.length > 0;
+      return res.json({
+        ok: true,
+        token,
+        customer: cust,
+        hasCard
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[PHONE LOGIN ERR]', err);
+    return res.status(500).json({ ok: false, error: 'Lỗi đăng nhập bằng số điện thoại' });
+  }
+});
+
 app.post('/api/auth/login-or-register', async (req, res) => {
   try {
     let { phone, pin } = req.body;
@@ -317,7 +381,7 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
         `SELECT c.*, p.name as program_name, p.end_date, p.stop_sale_date, p.voucher_5k, p.voucher_10k, p.aov_min
          FROM cards c
          JOIN programs p ON c.program_id = p.id
-         WHERE c.customer_id = $1 AND c.status IN ('active', 'pending_active')
+         WHERE c.customer_id = $1 AND c.status IN ('active', 'pending_active', 'expired')
          ORDER BY c.id DESC LIMIT 1`,
         [custId]
       );
@@ -327,6 +391,20 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
       let nextVoucher = null;
 
       if (currentCard) {
+        // Kiểm tra hạn 60 ngày kể từ ngày mua/tạo thẻ
+        const cardCreatedTime = new Date(currentCard.created_at || currentCard.purchased_at).getTime();
+        const expireMs = cardCreatedTime + (60 * 24 * 60 * 60 * 1000); // 60 ngày
+        const isExpired = Date.now() > expireMs || currentCard.status === 'expired';
+
+        if (isExpired && currentCard.status !== 'expired') {
+          await client.query("UPDATE cards SET status = 'expired', updated_at = NOW() WHERE id = $1", [currentCard.id]);
+          currentCard.status = 'expired';
+        }
+
+        currentCard.is_expired = isExpired;
+        currentCard.expires_at = new Date(expireMs).toISOString();
+        currentCard.purchased_at_str = new Date(cardCreatedTime).toISOString();
+
         const todayRes = await client.query(
           `SELECT * FROM redemptions 
            WHERE card_id = $1 AND DATE(used_at) = CURRENT_DATE AND valid = TRUE`,
@@ -485,6 +563,16 @@ app.post('/api/customer/redeem-voucher', customerAuth, async (req, res) => {
       }
 
       const card = cardRes.rows[0];
+      // Kiểm tra thời hạn 60 ngày
+      const cardBuyTime = new Date(card.created_at || card.purchased_at).getTime();
+      const expireTime = cardBuyTime + (60 * 24 * 60 * 60 * 1000);
+      if (Date.now() > expireTime || card.status === 'expired') {
+        await client.query("UPDATE cards SET status = 'expired', updated_at = NOW() WHERE id = $1", [card.id]);
+        await client.query('COMMIT');
+        const buyDateStr = new Date(cardBuyTime).toLocaleDateString('vi-VN');
+        return res.status(400).json({ ok: false, error: `Thẻ mua ngày ${buyDateStr} đã hết hạn sử dụng 60 ngày!` });
+      }
+
       if (card.status !== 'active') {
         await client.query('ROLLBACK');
         return res.status(400).json({ ok: false, error: 'Thẻ không trong trạng thái hoạt động' });

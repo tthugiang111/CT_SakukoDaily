@@ -106,48 +106,33 @@
             <i class="fa-solid fa-gem"></i>
           </div>
           <h2 class="text-xl font-bold text-slate-900">Thẻ Thành Viên Sakuko Daily</h2>
-          <p class="text-xs text-slate-500 max-w-xs mx-auto">Đăng nhập hoặc đăng ký nhanh bằng số điện thoại để quản lý 10 lượt ưu đãi</p>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto">Nhập số điện thoại để tra cứu thẻ ưu đãi và sử dụng voucher</p>
         </div>
 
         <div class="sakuko-light-card p-6 rounded-3xl space-y-4">
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Số điện thoại</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Số điện thoại khách hàng</label>
             <div class="relative">
               <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
                 <i class="fa-solid fa-phone"></i>
               </span>
               <input type="tel" id="authPhone" placeholder="0981234567" maxlength="10"
-                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:border-[#E0376F] focus:bg-white transition">
+                class="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold focus:outline-none focus:border-[#E0376F] focus:bg-white transition"
+                onkeydown="if(event.key === 'Enter') handlePhoneLogin()">
             </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">Hệ thống tự động nhận diện thẻ đã mua qua số điện thoại này tại quầy POS.</p>
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Mã PIN (6 chữ số)</label>
-            <div class="relative">
-              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
-                <i class="fa-solid fa-lock"></i>
-              </span>
-              <input type="password" id="authPin" placeholder="••••••" maxlength="6" inputmode="numeric"
-                class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm tracking-widest focus:outline-none focus:border-[#E0376F] focus:bg-white transition">
-            </div>
-            <p class="text-[11px] text-slate-400 mt-1">Khách mới chưa có tài khoản sẽ tự động được khởi tạo với PIN này.</p>
-          </div>
-
-          <button onclick="handleLoginOrRegister()"
-            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-[#E0376F]/25 active:scale-[0.98] transition">
-            Tiếp Tục Đăng Nhập
+          <button onclick="handlePhoneLogin()" id="btnPhoneLogin"
+            class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-bold text-sm shadow-lg shadow-[#E0376F]/25 active:scale-[0.98] transition flex items-center justify-center space-x-2">
+            <span>Truy Cập Ngay</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
           </button>
-
-          <div class="text-center pt-1">
-            <button onclick="showScreen('screenForgotPin')" class="text-xs font-semibold text-[#E0376F] hover:text-[#C82B5F]">
-              Quên mã PIN? Bấm vào đây để đổi
-            </button>
-          </div>
         </div>
       </div>
 
       <!-- ============================================ -->
-      <!-- SCREEN 2: HIỂN THỊ MÃ KHÔI PHỤC KHI ĐĂNG KÝ MỚI -->
+      <!-- SCREEN 2:  HIỂN THỊ MÃ KHÔI PHỤC KHI ĐĂNG KÝ MỚI -->
       <!-- ============================================ -->
       <div id="screenRecoveryNotice" class="hidden space-y-6 pt-4 text-center">
         <div class="w-14 h-14 mx-auto rounded-3xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl shadow-sm">
@@ -238,6 +223,7 @@
           </div>
 
           <!-- Thanh tiến độ -->
+          <div id="cardExpiredNoticeBanner" class="hidden mb-3.5 p-3 rounded-2xl bg-red-950/80 border border-red-500/50 backdrop-blur-md"></div>
           <div class="bg-black/25 rounded-2xl p-3 mb-3.5 backdrop-blur-sm border border-white/10">
             <div class="flex justify-between text-xs font-medium mb-1.5">
               <span class="text-[#FEF4E4]">Tiến độ sử dụng</span>
@@ -354,55 +340,44 @@
     // ==========================================
     // KHÁCH HÀNG: ĐĂNG NHẬP / ĐĂNG KÝ
     // ==========================================
-    async function handleLoginOrRegister() {
-      const phone = document.getElementById('authPhone').value.trim();
-      const pin = document.getElementById('authPin').value.trim();
-      if (!phone || !pin) return alert('Vui lòng nhập đầy đủ SĐT và mã PIN 6 số!');
+    
+    async function handlePhoneLogin() {
+      const phoneInput = document.getElementById('authPhone');
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+      if (!phone) return alert('Vui lòng nhập số điện thoại!');
+
+      const btn = document.getElementById('btnPhoneLogin');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang kiểm tra...';
+      }
 
       try {
-        const res = await fetch('/api/auth/login-or-register', {
+        const res = await fetch('/api/auth/phone-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, pin })
+          body: JSON.stringify({ phone })
         });
         const data = await res.json();
-        if (!data.ok) return alert(data.error);
-
-        if (data.isNew && data.recoveryCode) {
-          document.getElementById('displayRecoveryCode').innerText = data.recoveryCode;
-          showScreen('screenRecoveryNotice');
-        } else {
-          await loadCustomerData();
-          showScreen('screenCustomerHome');
+        if (!data.ok) {
+          alert(data.error || 'Lỗi đăng nhập!');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Truy Cập Ngay</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
+          }
+          return;
         }
+
+        currentCustomer = data.customer;
+        await loadCustomerData();
+        showScreen('screenCustomerHome');
       } catch (err) {
         alert('Lỗi kết nối máy chủ!');
-      }
-    }
-
-    async function confirmSavedRecoveryCode() {
-      await loadCustomerData();
-      showScreen('screenCustomerHome');
-    }
-
-    async function handleResetPinByRecovery() {
-      const phone = document.getElementById('recPhone').value.trim();
-      const recoveryCode = document.getElementById('recCode').value.trim();
-      const newPin = document.getElementById('recNewPin').value.trim();
-      if (!phone || !recoveryCode || !newPin) return alert('Vui lòng nhập đầy đủ thông tin!');
-
-      try {
-        const res = await fetch('/api/auth/reset-pin-by-recovery', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, recoveryCode, newPin })
-        });
-        const data = await res.json();
-        if (!data.ok) return alert(data.error);
-        alert(data.message);
-        showScreen('screenAuth');
-      } catch (err) {
-        alert('Lỗi kết nối!');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Truy Cập Ngay</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
+        }
       }
     }
 
@@ -455,11 +430,53 @@
       }
 
       if (cardSec) cardSec.classList.remove('hidden');
+      const isExpired = !!(card.is_expired || card.status === 'expired');
+
+      // Tính ngày mua và ngày hết hạn
+      const buyDate = new Date(card.created_at || card.purchased_at);
+      const buyDateStr = buyDate.toLocaleDateString('vi-VN');
+      const expireDate = new Date(buyDate.getTime() + (60 * 24 * 60 * 60 * 1000));
+      const expireDateStr = expireDate.toLocaleDateString('vi-VN');
+
+      const statusBadge = document.getElementById('cardStatusBadge');
+      const bannerExpired = document.getElementById('cardExpiredNoticeBanner');
+
+      if (isExpired) {
+        // ĐÓNG ĐEN THẺ KHI HẾT HẠN 60 NGÀY
+        cardSec.className = 'rounded-3xl p-5 bg-gradient-to-br from-slate-900 via-neutral-900 to-black text-slate-400 shadow-2xl relative overflow-hidden border-2 border-red-500/40 grayscale-[40%]';
+        if (statusBadge) {
+          statusBadge.className = 'text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-red-900/90 text-red-200 border border-red-500/50 shadow-sm shrink-0';
+          statusBadge.innerHTML = '<i class="fa-solid fa-ban mr-1"></i> ĐÃ HẾT HẠN';
+        }
+        if (bannerExpired) {
+          bannerExpired.classList.remove('hidden');
+          bannerExpired.innerHTML = `
+            <div class="flex items-start space-x-2 text-left">
+              <i class="fa-solid fa-triangle-exclamation text-red-400 mt-0.5 text-sm shrink-0"></i>
+              <div>
+                <p class="text-xs font-black text-red-300">THẺ ĐÃ HẾT HẠN 60 NGÀY</p>
+                <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                  Thẻ được mua từ ngày <span class="text-amber-300 font-bold">${buyDateStr}</span> và đã hết hạn vào ngày <span class="text-red-300 font-bold">${expireDateStr}</span>. Toàn bộ tính năng sử dụng voucher đã bị khóa lại.
+                </p>
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        // THẺ ĐANG HOẠT ĐỘNG
+        cardSec.className = 'rounded-3xl p-5 sakuko-card-bg text-white shadow-xl relative overflow-hidden border border-white/20';
+        if (statusBadge) {
+          statusBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm whitespace-nowrap shrink-0';
+          statusBadge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Đang hoạt động';
+        }
+        if (bannerExpired) bannerExpired.classList.add('hidden');
+      }
+
       document.getElementById('cardProgramName').innerText = card.program_name || 'Thẻ Sakuko Daily';
       document.getElementById('cardProgressText').innerText = `${card.uses_count} / 10 lượt`;
       document.getElementById('cardProgressBar').style.width = `${(card.uses_count / 10) * 100}%`;
 
-      renderStampsGrid(card, data.usedToday);
+      renderStampsGrid(card, data.usedToday, isExpired, buyDateStr);
 
       // Render bảng chi tiết 10 lượt
       const tableBody = document.getElementById('detailStepsTableBody');
@@ -587,7 +604,25 @@
     
     let selectedStepForModal = null;
 
-    function renderStampsGrid(card, usedToday) {
+    function renderStampsGrid(card, usedToday, isExpired, buyDateStr) {
+      if (isExpired) {
+        const grid = document.getElementById('stampsGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (let i = 1; i <= 10; i++) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.disabled = true;
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/60 text-slate-500 border border-white/5 opacity-40 cursor-not-allowed';
+          btn.innerHTML = `
+            <span class="line-through text-slate-500">#${i}</span>
+            <span class="text-[9px] text-red-400 font-semibold">Hết hạn</span>
+          `;
+          btn.onclick = () => alert(`Thẻ mua từ ngày ${buyDateStr || ''} đã hết hạn 60 ngày, không thể sử dụng!`);
+          grid.appendChild(btn);
+        }
+        return;
+      }
       const grid = document.getElementById('stampsGrid');
       if (!grid) return;
       grid.innerHTML = '';
