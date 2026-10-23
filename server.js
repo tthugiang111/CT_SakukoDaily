@@ -1283,8 +1283,11 @@ app.get('/api/webhook/pos-events', (req, res) => {
 });
 
 app.post('/api/webhook/pos-events', async (req, res) => {
+  const receivedTime = new Date();
+  const receivedIso = receivedTime.toISOString();
   try {
     recordWebhookEvent({
+      received_at: receivedIso,
       method: req.method,
       path: req.path,
       topic: req.headers['x-haravan-topic'] || req.headers['x-event-type'] || req.body?.event || 'unknown',
@@ -1303,7 +1306,32 @@ app.post('/api/webhook/pos-events', async (req, res) => {
   try {
     const payload = req.body || {};
     const eventType = String(req.headers['x-event-type'] || payload.event || payload.type || 'unknown').toLowerCase();
-    console.log('[WEBHOOK RECEIVED]', new Date().toISOString(), 'Event:', eventType, 'Order:', payload.order_number || payload.order_no || payload.id, 'Data:', JSON.stringify(payload));
+    const packetOrder = payload.order_number || payload.order_no || payload.code || payload.name || payload.id || 'N/A';
+    console.log('[WEBHOOK RECEIVED]', receivedIso, 'Event:', eventType, 'Order:', packetOrder, 'Data:', JSON.stringify(payload));
+
+    // Ghi nhận nhật ký nhận gói tin webhook vào audit_log
+    try {
+      await client.query(
+        `INSERT INTO audit_log (actor, action, target, detail, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          'HARAVAN_WEBHOOK',
+          'WEBHOOK_PACKET_RECEIVED',
+          `order:${packetOrder}`,
+          JSON.stringify({
+            received_at: receivedIso,
+            topic: req.headers['x-haravan-topic'] || eventType,
+            order_no: packetOrder,
+            phone: (payload.billing_address && payload.billing_address.phone) || (payload.customer && payload.customer.phone) || null,
+            financial_status: payload.financial_status || null,
+            fulfillment_status: payload.fulfillment_status || null
+          }),
+          receivedTime
+        ]
+      );
+    } catch (logErr) {
+      // Bỏ qua lỗi log phụ
+    }
 
     const orderNo = payload.order_number || payload.order_no || payload.code || payload.order_code || (payload.id ? `HRV_${payload.id}` : null);
     
