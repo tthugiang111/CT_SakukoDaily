@@ -148,14 +148,7 @@ app.post('/api/auth/login-or-register', async (req, res) => {
         const token = jwt.sign({ id: newCust.rows[0].id, phone, role: 'customer' }, JWT_SECRET, { expiresIn: '90d' });
         res.cookie('nbt_token', token, { httpOnly: true, maxAge: 90 * 24 * 3600 * 1000 });
 
-        // Tự động kích hoạt thẻ ảo 10 lượt ngay lập tức cho khách mới (Lượt #1 mở dùng luôn hôm nay)
-        const progRes = await client.query("SELECT * FROM programs WHERE status = 'active' ORDER BY id DESC LIMIT 1");
-        const progId = progRes.rows.length > 0 ? progRes.rows[0].id : 1;
-        await client.query(
-          `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no, created_at)
-           VALUES ($1, $2, 'XT', CURRENT_DATE, 'active', 0, $3, NOW() - INTERVAL '1 day')`,
-          [newCust.rows[0].id, progId, 'REG_' + Math.floor(Math.random() * 899999 + 100000)]
-        );
+        // Khách mới chưa có đơn hàng mua thẻ trà: không tự động cấp thẻ ảo, chờ webhook Haravan kích hoạt khi mua tại quầy
 
         return res.json({
           ok: true,
@@ -1228,9 +1221,11 @@ app.post('/api/webhook/pos-events', async (req, res) => {
         const barcode = String(it.barcode || '').trim().toUpperCase();
         const sku = String(it.sku || it.item_code || it.product_code || '').trim().toUpperCase();
         const name = String(it.name || it.title || it.product_name || '').toUpperCase();
-        return barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
+        return barcode === '2025041800002' || sku === '2025041800002' ||
+               barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
                barcode === '8936000000018' || sku === 'SP_NBT_XUANTHUY' ||
-               name.includes('RTD.TP00013') || name.includes('SAKUKO DAILY') || name.includes('THẺ NBT');
+               name.includes('2025041800002') || name.includes('RTD.TP00013') || 
+               name.includes('SAKUKO DAILY') || name.includes('THẺ NBT') || name.includes('THẺ TRÀ');
       });
 
       if (cardItem) {
@@ -1243,13 +1238,12 @@ app.post('/api/webhook/pos-events', async (req, res) => {
           );
           if (checkCard.rows.length === 0) {
             const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const usableFromStr = tomorrow.toISOString().split('T')[0];
+            const usableFromStr = new Date().toISOString().split('T')[0];
             const progId = activeProg ? activeProg.id : 1;
 
             const insertedCard = await client.query(
               `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no)
-               VALUES ($1, $2, $3, $4, 'active', 0, $5) RETURNING id`,
+               VALUES ($1, $2, $3, CURRENT_DATE, 'active', 0, $5) RETURNING id`,
               [custId, progId, storeCode, usableFromStr, orderNo || null]
             );
 
