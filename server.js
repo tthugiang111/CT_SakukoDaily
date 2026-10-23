@@ -27,6 +27,33 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors());
 
+
+// ==========================================
+// BỘ NHỚ ĐỆM TẠM THỜI CHO WEBHOOK EVENTS (TTL 30 PHÚT)
+// ==========================================
+const recentWebhookEvents = [];
+const WEBHOOK_EVENT_TTL_MS = 30 * 60 * 1000; // 30 phút
+
+function recordWebhookEvent(eventData) {
+  const now = Date.now();
+  recentWebhookEvents.push({
+    received_at: new Date(now).toISOString(),
+    timestamp_ms: now,
+    ...eventData
+  });
+  cleanupOldWebhookEvents();
+}
+
+function cleanupOldWebhookEvents() {
+  const cutoff = Date.now() - WEBHOOK_EVENT_TTL_MS;
+  while (recentWebhookEvents.length > 0 && recentWebhookEvents[0].timestamp_ms < cutoff) {
+    recentWebhookEvents.shift();
+  }
+}
+
+// Chạy dọn dẹp định kỳ mỗi 5 phút
+setInterval(cleanupOldWebhookEvents, 5 * 60 * 1000);
+
 // GLOBAL REQUEST LOGGER FOR WEBHOOK DEBUGGING
 app.use((req, res, next) => {
   if (req.path.includes('webhook') || req.method === 'POST') {
@@ -714,6 +741,18 @@ app.post('/api/admin/approve-pin-reset', adminAuth, async (req, res) => {
 // Báo cáo vận hành chuyên sâu cho PC
 
 // API LẤY LỊCH SỬ HOẠT ĐỘNG / TRUY CẬP / CẬP NHẬT HỆ THỐNG
+
+// API LẤY CÁC SỰ KIỆN WEBHOOK TRONG VÒNG 30 PHÚT
+app.get('/api/admin/recent-webhooks', adminAuth, (req, res) => {
+  cleanupOldWebhookEvents();
+  return res.json({
+    ok: true,
+    ttl_minutes: 30,
+    total: recentWebhookEvents.length,
+    events: [...recentWebhookEvents].reverse()
+  });
+});
+
 app.get('/api/admin/audit-logs', adminAuth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1156,6 +1195,22 @@ app.get('/api/webhook/pos-events', (req, res) => {
 });
 
 app.post('/api/webhook/pos-events', async (req, res) => {
+  try {
+    recordWebhookEvent({
+      method: req.method,
+      path: req.path,
+      topic: req.headers['x-haravan-topic'] || req.headers['x-event-type'] || req.body?.event || 'unknown',
+      headers: {
+        'x-haravan-topic': req.headers['x-haravan-topic'],
+        'x-event-type': req.headers['x-event-type'],
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent']
+      },
+      payload: req.body || {}
+    });
+  } catch (errCache) {
+    console.error('[WEBHOOK CACHE ERROR]', errCache);
+  }
   const client = await pool.connect();
   try {
     const payload = req.body || {};
