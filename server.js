@@ -1405,44 +1405,82 @@ app.post('/api/webhook/pos-events', async (req, res) => {
         }
       }
 
-      // CASE 2: KIỂM TRA ĐƠN HÀNG CÓ SỬ DỤNG VOUCHER NBT KHÔNG -> TĂNG LƯỢT DÙNG
-      const hasNbtVoucher = discounts.some(d => {
-        const code = String(d.code || d.voucher_code || d.name || '').toUpperCase();
-        return code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT');
-      }) || items.some(it => {
-        const sku = String(it.sku || it.item_code || '').toUpperCase();
-        return sku.includes('DAILY5K') || sku.includes('DAILY10K');
-      });
+      // CASE 2: KIỂM TRA ĐƠN HÀNG CÓ SỬ DỤNG VOUCHER NBT KHÔNG -> KHÓA MÃ LƯỢT TẠI WEB + CẬP NHẬT LỊCH SỬ
+      let matchedVoucherCode = null;
+      let voucherDiscountAmount = 0;
 
-      if (hasNbtVoucher && isEligibleToActivate) {
-        const cardRes = await client.query(
-          `SELECT * FROM cards WHERE customer_id = $1 AND status = 'active' ORDER BY id DESC LIMIT 1 FOR UPDATE`,
-          [custId]
+      // Tìm trong discount_codes
+      for (const d of discounts) {
+        const code = String(d.code || d.voucher_code || d.name || '').trim().toUpperCase();
+        if (code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT')) {
+          matchedVoucherCode = code;
+          voucherDiscountAmount = Number(d.amount || (code.includes('10K') ? 10000 : 5000));
+          break;
+        }
+      }
+
+      // Tìm trong line_items (nếu voucher gán vào line item hoặc applied_discounts)
+      if (!matchedVoucherCode) {
+        for (const it of items) {
+          const sku = String(it.sku || it.item_code || '').trim().toUpperCase();
+          const bc = String(it.barcode || '').trim().toUpperCase();
+          const itName = String(it.name || it.title || '').trim().toUpperCase();
+          if (sku.includes('DAILY5K') || sku.includes('DAILY10K') || bc.includes('DAILY5K') || bc.includes('DAILY10K') || itName.includes('DAILY5K') || itName.includes('DAILY10K')) {
+            matchedVoucherCode = sku || bc || 'DAILY5K';
+            voucherDiscountAmount = (sku.includes('10K') || bc.includes('10K')) ? 10000 : 5000;
+            break;
+          }
+          if (Array.isArray(it.applied_discounts)) {
+            for (const ad of it.applied_discounts) {
+              const adTitle = String(ad.title || ad.description || '').trim().toUpperCase();
+              if (adTitle.includes('DAILY5K') || adTitle.includes('DAILY10K') || adTitle.includes('NBT')) {
+                matchedVoucherCode = adTitle;
+                voucherDiscountAmount = Number(ad.amount || (adTitle.includes('10K') ? 10000 : 5000));
+                break;
+              }
+            }
+          }
+          if (matchedVoucherCode) break;
+        }
+      }
+
+      if (matchedVoucherCode && isEligibleToActivate) {
+        // Kiểm tra xem đơn này đã từng ghi nhận redemption chưa để tránh cộng dồn lặp
+        const checkExistingRedeem = await client.query(
+          `SELECT id FROM redemptions WHERE order_no = $1 AND valid = TRUE LIMIT 1`,
+          [orderNo]
         );
-        if (cardRes.rows.length > 0) {
-          const card = cardRes.rows[0];
-          const newUsesCount = Number(card.uses_count) + 1;
-          const isBig = (newUsesCount === 5 || newUsesCount === 10);
-          const discountVal = isBig ? 10000 : 5000;
-          const voucherCode = isBig ? (activeProg?.voucher_10k || 'DAILY10K') : (activeProg?.voucher_5k || 'DAILY5K');
-          const newStatus = newUsesCount >= 10 ? 'used_up' : 'active';
 
-          await client.query(
-            `INSERT INTO redemptions (card_id, customer_id, use_no, order_no, discount, store_code, voucher_code, source, valid)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'haravan_webhook', true)`,
-            [card.id, custId, newUsesCount, orderNo || 'POS_WEBHOOK', discountVal, storeCode, voucherCode]
+        if (checkExistingRedeem.rows.length === 0) {
+          const cardRes = await client.query(
+            `SELECT * FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active') ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+            [custId]
           );
+          if (cardRes.rows.length > 0) {
+            const card = cardRes.rows[0];
+            const newUsesCount = Number(card.uses_count) + 1;
+            const isBig = (newUsesCount === 5 || newUsesCount === 10);
+            const discountVal = voucherDiscountAmount || (isBig ? 10000 : 5000);
+            const voucherCode = matchedVoucherCode || (isBig ? (activeProg?.voucher_10k || 'DAILY10K') : (activeProg?.voucher_5k || 'DAILY5K'));
+            const newStatus = newUsesCount >= 10 ? 'used_up' : 'active';
 
-          await client.query(
-            `UPDATE cards SET uses_count = $1, status = $2, updated_at = NOW() WHERE id = $3`,
-            [newUsesCount, newStatus, card.id]
-          );
+            await client.query(
+              `INSERT INTO redemptions (card_id, customer_id, use_no, order_no, discount, store_code, voucher_code, source, valid, used_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'haravan_webhook', true, NOW())`,
+              [card.id, custId, newUsesCount, orderNo || 'POS_WEBHOOK', discountVal, storeCode, voucherCode]
+            );
 
-          await client.query(
-            `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
-            ['HARAVAN_WEBHOOK', 'VOUCHER_REDEEMED', `card:${card.id}`, JSON.stringify({ orderNo, newUsesCount, discountVal, storeCode })]
-          );
-          console.log(`[WEBHOOK REDEEMED VOUCHER] SĐT: ${cleanPhone}, Lượt: #${newUsesCount}, Trạng thái: ${newStatus}`);
+            await client.query(
+              `UPDATE cards SET uses_count = $1, status = $2, updated_at = NOW() WHERE id = $3`,
+              [newUsesCount, newStatus, card.id]
+            );
+
+            await client.query(
+              `INSERT INTO audit_log (action, details) VALUES ('HARAVAN_WEBHOOK_VOUCHER_REDEEM', $1)`,
+              [JSON.stringify({ phone: cleanPhone, order_no: orderNo, card_id: card.id, use_no: newUsesCount, discount: discountVal, store_code: storeCode })]
+            );
+            console.log(`[WEBHOOK REDEEMED VOUCHER] SĐT: ${cleanPhone}, Đơn: ${orderNo}, Khóa lượt: #${newUsesCount}, Trạng thái thẻ: ${newStatus}`);
+          }
         }
       }
 
@@ -1555,6 +1593,63 @@ async function autoSyncHaravanOrders() {
             [JSON.stringify({ phone, order_no: orderNo, card_id: newCard.rows[0].id, store_code: storeCode })]
           );
           console.log(`[REALTIME SYNC ACTIVATED] SĐT: ${phone}, Đơn: ${orderNo}`);
+        }
+
+        // KIỂM TRA ĐƠN CÓ DÙNG VOUCHER NBT ĐỂ CẬP NHẬT LƯỢT VÀ LỊCH SỬ DÙNG THẺ
+        const discounts = order.discount_codes || [];
+        let matchedVoucher = null;
+        let vDiscount = 0;
+        for (const d of discounts) {
+          const c = String(d.code || d.name || '').trim().toUpperCase();
+          if (c.includes('DAILY5K') || c.includes('DAILY10K') || c.includes('NBT')) {
+            matchedVoucher = c;
+            vDiscount = Number(d.amount || (c.includes('10K') ? 10000 : 5000));
+            break;
+          }
+        }
+        if (!matchedVoucher) {
+          for (const it of lineItems) {
+            const sku = String(it.sku || '').trim().toUpperCase();
+            const bc = String(it.barcode || '').trim().toUpperCase();
+            if (sku.includes('DAILY5K') || sku.includes('DAILY10K') || bc.includes('DAILY5K') || bc.includes('DAILY10K')) {
+              matchedVoucher = sku || bc;
+              vDiscount = (sku.includes('10K') || bc.includes('10K')) ? 10000 : 5000;
+              break;
+            }
+          }
+        }
+
+        if (matchedVoucher) {
+          const checkRedeem = await client.query('SELECT id FROM redemptions WHERE order_no = $1 AND valid = TRUE LIMIT 1', [orderNo]);
+          if (checkRedeem.rows.length === 0) {
+            const activeCardRes = await client.query(
+              `SELECT * FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active') ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+              [custId]
+            );
+            if (activeCardRes.rows.length > 0) {
+              const card = activeCardRes.rows[0];
+              const newCount = Number(card.uses_count) + 1;
+              const isBig = (newCount === 5 || newCount === 10);
+              const discVal = vDiscount || (isBig ? 10000 : 5000);
+              const vCode = matchedVoucher || (isBig ? 'DAILY10K' : 'DAILY5K');
+              const nextStat = newCount >= 10 ? 'used_up' : 'active';
+
+              await client.query(
+                `INSERT INTO redemptions (card_id, customer_id, use_no, order_no, discount, store_code, voucher_code, source, valid, used_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'haravan_sync', true, NOW())`,
+                [card.id, custId, newCount, orderNo, discVal, storeCode, vCode]
+              );
+              await client.query(
+                `UPDATE cards SET uses_count = $1, status = $2, updated_at = NOW() WHERE id = $3`,
+                [newCount, nextStat, card.id]
+              );
+              await client.query(
+                `INSERT INTO audit_log (action, details) VALUES ('AUTO_SYNC_VOUCHER_REDEEM', $1)`,
+                [JSON.stringify({ phone, order_no: orderNo, card_id: card.id, use_no: newCount, discount: discVal, store_code: storeCode })]
+              );
+              console.log(`[AUTO SYNC REDEEMED VOUCHER] SĐT: ${phone}, Đơn: ${orderNo}, Khóa lượt: #${newCount}`);
+            }
+          }
         }
       }
     } finally {
