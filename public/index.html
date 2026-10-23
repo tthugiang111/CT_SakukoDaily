@@ -380,8 +380,8 @@
       }
     }
 
-    function confirmSavedRecoveryCode() {
-      loadCustomerData();
+    async function confirmSavedRecoveryCode() {
+      await loadCustomerData();
       showScreen('screenCustomerHome');
     }
 
@@ -526,7 +526,7 @@
             clearInterval(buyPollTimer);
             closeBuyModal();
             alert('Máy POS đã xác nhận thanh toán! Thẻ Sakuko Daily đã được kích hoạt.');
-            loadCustomerData();
+            await loadCustomerData();
           }
         } catch (e) {}
       }, 2000);
@@ -556,7 +556,7 @@
         clearInterval(buyPollTimer);
         closeBuyModal();
         alert('Giả lập POS quét thành công! Thẻ của bạn đã được kích hoạt.');
-        loadCustomerData();
+        await loadCustomerData();
       } catch (e) {
         alert('Lỗi giả lập POS');
       }
@@ -578,7 +578,7 @@
         const data = await res.json();
         if (!data.ok) return alert(data.error);
         alert(data.message);
-        loadCustomerData();
+        await loadCustomerData();
       } catch (e) {
         alert('Lỗi giao dịch!');
       }
@@ -688,7 +688,7 @@
         if (!data.ok) return alert(data.error);
         alert(data.message || 'Đã áp dụng voucher thành công!');
         closeVoucherModal();
-        loadCustomerData();
+        await loadCustomerData();
       } catch (e) {
         alert('Lỗi áp dụng voucher');
       }
@@ -946,8 +946,8 @@
     }
 
 
-    window.addEventListener('DOMContentLoaded', () => {
-      loadCustomerData();
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadCustomerData();
     });
   </script>
 
