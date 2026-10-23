@@ -1345,14 +1345,100 @@ app.post('/api/webhook/pos-events', async (req, res) => {
     const items = payload.line_items || payload.items || payload.products || [];
     const discounts = payload.discount_codes || payload.discounts || payload.promotions || [];
 
-    // Kiểm tra trạng thái đơn: Phải hoàn thành / đã thanh toán
+    // Kiểm tra trạng thái đơn: Hoàn thành hoặc Hủy / Hoàn tiền
     const finStatus = String(payload.financial_status || '').toLowerCase();
     const fulfillStatus = String(payload.fulfillment_status || '').toLowerCase();
     const isPaidEvent = eventType.includes('paid') || eventType.includes('fulfilled') || eventType.includes('completed');
     const isPaidStatus = finStatus === 'paid' || fulfillStatus === 'fulfilled' || payload.send_paid === true || payload.status === 'completed';
-    const isCancelled = payload.cancelled_at || payload.cancel_reason || finStatus === 'voided' || finStatus === 'refunded';
+    const isCancelled = payload.cancelled_at || payload.cancel_reason || finStatus === 'voided' || finStatus === 'refunded' || eventType.includes('cancelled') || eventType.includes('voided');
 
-    if (rawPhone && !isCancelled) {
+    if (rawPhone && isCancelled) {
+      let cleanPhone = String(rawPhone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
+      const isValidVnPhone = /^0(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone);
+      if (isValidVnPhone) {
+        await client.query('BEGIN');
+        const custRes = await client.query('SELECT id FROM customers WHERE phone = $1', [cleanPhone]);
+        if (custRes.rows.length > 0) {
+          const custId = custRes.rows[0].id;
+
+          // TH1: HỦY ĐƠN MUA THẺ (Có chứa barcode/sku thẻ NBT hoặc gắn order_no mua thẻ)
+          const cardItem = items.find(it => {
+            const barcode = String(it.barcode || '').trim().toUpperCase();
+            const sku = String(it.sku || it.item_code || it.product_code || '').trim().toUpperCase();
+            const name = String(it.name || it.title || it.product_name || '').toUpperCase();
+            return barcode === '2025041800002' || sku === '2025041800002' ||
+                   barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
+                   barcode === '8936000000018' || sku === 'SP_NBT_XUANTHUY' ||
+                   name.includes('2025041800002') || name.includes('RTD.TP00013') || 
+                   name.includes('SAKUKO DAILY') || name.includes('THẺ NBT') || name.includes('THẺ TRÀ');
+          });
+
+          if (cardItem || orderNo) {
+            // Tìm thẻ ứng với đơn hàng hoặc thẻ active gần nhất của khách
+            const cancelCardRes = await client.query(
+              `UPDATE cards 
+               SET status = 'cancelled', updated_at = NOW() 
+               WHERE customer_id = $1 AND (order_no = $2 OR (status IN ('active', 'pending_active') AND $3 = TRUE))
+               RETURNING id, order_no`,
+              [custId, orderNo, Boolean(cardItem)]
+            );
+            if (cancelCardRes.rows.length > 0) {
+              for (const c of cancelCardRes.rows) {
+                await client.query(
+                  `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+                  ['HARAVAN_WEBHOOK', 'CARD_CANCELLED_ORDER_VOID', `customer:${cleanPhone}`, JSON.stringify({
+                    cardId: c.id,
+                    orderNo: orderNo,
+                    cancel_reason: payload.cancel_reason || 'Đơn hàng bị hủy'
+                  })]
+                );
+                console.log(`[WEBHOOK CANCELLED CARD] SĐT: ${cleanPhone}, Đơn hủy: ${orderNo}, Card ID: ${c.id}`);
+              }
+            }
+          }
+
+          // TH2: HỦY ĐƠN CÓ DÙNG VOUCHER NBT -> HOÀN LẠI LƯỢT VOUCHER TRÊN WEB
+          const existingRedeem = await client.query(
+            `SELECT id, card_id, use_no, voucher_code, discount 
+             FROM redemptions 
+             WHERE customer_id = $1 AND order_no = $2 AND valid = TRUE`,
+            [custId, orderNo]
+          );
+
+          if (existingRedeem.rows.length > 0) {
+            for (const r of existingRedeem.rows) {
+              // Đánh dấu redemption không còn hợp lệ
+              await client.query(
+                `UPDATE redemptions SET valid = FALSE, violation_codes = 'ORDER_CANCELLED_REFUND' WHERE id = $1`,
+                [r.id]
+              );
+
+              // Hoàn lại lượt dùng cho thẻ: giảm uses_count đi 1 và mở lại trạng thái active
+              await client.query(
+                `UPDATE cards 
+                 SET uses_count = GREATEST(0, uses_count - 1), 
+                     status = 'active', 
+                     updated_at = NOW() 
+                 WHERE id = $1`,
+                [r.card_id]
+              );
+
+              await client.query(
+                `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+                ['HARAVAN_WEBHOOK', 'VOUCHER_ROLLBACK_ORDER_CANCELLED', `customer:${cleanPhone}`, JSON.stringify({
+                  cardId: r.card_id,
+                  orderNo: orderNo,
+                  refundedUseNo: r.use_no,
+                  voucherCode: r.voucher_code
+                })]
+              );
+              console.log(`[WEBHOOK VOUCHER REFUNDED] SĐT: ${cleanPhone}, Đơn hủy: ${orderNo}, Mở lại lượt #${r.use_no} cho thẻ ID ${r.card_id}`);
+            }
+          }
+        }
+        await client.query('COMMIT');
+      }
+    } else if (rawPhone && !isCancelled) {
       // Chuẩn hóa và xác thực số điện thoại
       let cleanPhone = String(rawPhone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
       const isValidVnPhone = /^0(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone);
@@ -1564,8 +1650,8 @@ async function autoSyncHaravanOrders() {
       for (const order of orders) {
         const finStatus = (order.financial_status || '').toLowerCase();
         const fulfillStatus = (order.fulfillment_status || '').toLowerCase();
-        const isEligible = finStatus === 'paid' || fulfillStatus === 'fulfilled';
-        if (!isEligible) continue;
+        const isCancelled = order.cancelled_at || order.cancel_reason || finStatus === 'voided' || finStatus === 'refunded';
+        const isEligible = (finStatus === 'paid' || fulfillStatus === 'fulfilled') && !isCancelled;
 
         let phone = (order.billing_address && order.billing_address.phone) ||
                     (order.customer && order.customer.phone) ||
@@ -1574,16 +1660,59 @@ async function autoSyncHaravanOrders() {
         phone = phone.trim().replace(/^(\+84|84)/, '0');
         if (!/^0\d{9}$/.test(phone)) continue;
 
+        const orderNo = order.order_number || order.name || String(order.id);
         const lineItems = order.line_items || [];
+
+        // XỬ LÝ ĐỒNG BỘ ĐƠN BỊ HỦY / HOÀN TIỀN
+        if (isCancelled) {
+          const userRes = await client.query('SELECT id FROM customers WHERE phone = $1', [phone]);
+          if (userRes.rows.length > 0) {
+            const custId = userRes.rows[0].id;
+            
+            // TH1: HỦY ĐƠN MUA THẺ
+            const cardItem = lineItems.find(item => {
+              const barcode = String(item.barcode || '').trim();
+              const sku = String(item.sku || '').trim();
+              return barcode === '2025041800002' || barcode === 'RTD.TP00013' ||
+                     sku === '2025041800002' || sku === 'RTD.TP00013';
+            });
+            if (cardItem || orderNo) {
+              const cancelCard = await client.query(
+                `UPDATE cards SET status = 'cancelled', updated_at = NOW()
+                 WHERE customer_id = $1 AND (order_no = $2 OR (status IN ('active', 'pending_active') AND $3 = TRUE))
+                 RETURNING id`,
+                [custId, orderNo, Boolean(cardItem)]
+              );
+              if (cancelCard.rows.length > 0) {
+                console.log(`[SYNC CANCELLED CARD] SĐT: ${phone}, Đơn hủy: ${orderNo}, Card IDs:`, cancelCard.rows.map(r => r.id));
+              }
+            }
+
+            // TH2: HỦY ĐƠN CÓ DÙNG VOUCHER NBT -> MỞ LẠI LƯỢT TRÊN WEB
+            const checkRedeem = await client.query(
+              `SELECT id, card_id, use_no FROM redemptions WHERE customer_id = $1 AND order_no = $2 AND valid = TRUE`,
+              [custId, orderNo]
+            );
+            if (checkRedeem.rows.length > 0) {
+              for (const r of checkRedeem.rows) {
+                await client.query(`UPDATE redemptions SET valid = FALSE, violation_codes = 'ORDER_CANCELLED_REFUND' WHERE id = $1`, [r.id]);
+                await client.query(`UPDATE cards SET uses_count = GREATEST(0, uses_count - 1), status = 'active', updated_at = NOW() WHERE id = $1`, [r.card_id]);
+                console.log(`[SYNC VOUCHER REFUNDED] SĐT: ${phone}, Đơn hủy: ${orderNo}, Mở lại lượt #${r.use_no} cho thẻ ${r.card_id}`);
+              }
+            }
+          }
+          continue;
+        }
+
+        if (!isEligible) continue;
+
         const cardItem = lineItems.find(item => {
           const barcode = String(item.barcode || '').trim();
           const sku = String(item.sku || '').trim();
           return barcode === '2025041800002' || barcode === 'RTD.TP00013' ||
                  sku === '2025041800002' || sku === 'RTD.TP00013';
         });
-        if (!cardItem) continue;
 
-        const orderNo = order.order_number || order.name || String(order.id);
         const storeCode = (order.location_name && order.location_name.includes('Xuân Thủy')) ? 'XT' : (order.location_name || 'POS');
 
         // Check customer
