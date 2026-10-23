@@ -859,6 +859,62 @@ app.get('/api/admin/audit-logs', adminAuth, async (req, res) => {
   }
 });
 
+
+// API Cập nhật cấu hình barcode thẻ và mã voucher của chương trình
+app.post('/api/admin/programs/update-config', adminAuth, async (req, res) => {
+  try {
+    const { programId, barcode, itemCode, voucher5k, voucher10k, aovMin } = req.body;
+    if (!programId) {
+      return res.status(400).json({ ok: false, error: 'Thiếu programId' });
+    }
+    const cleanBarcode = String(barcode || '').trim();
+    const cleanItemCode = String(itemCode || cleanBarcode || '').trim();
+    const cleanV5k = String(voucher5k || 'DAILY5K').trim().toUpperCase();
+    const cleanV10k = String(voucher10k || 'DAILY10K').trim().toUpperCase();
+
+    if (!cleanBarcode) {
+      return res.status(400).json({ ok: false, error: 'Barcode thẻ không được để trống' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updatedProg = await client.query(
+        `UPDATE programs 
+         SET barcode = $1, item_code = $2, voucher_5k = $3, voucher_10k = $4,
+             aov_min = COALESCE($5, aov_min)
+         WHERE id = $6 RETURNING *`,
+        [cleanBarcode, cleanItemCode, cleanV5k, cleanV10k, aovMin || null, programId]
+      );
+
+      if (updatedProg.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ ok: false, error: 'Không tìm thấy chương trình' });
+      }
+
+      await client.query(
+        `INSERT INTO audit_log (actor, action, target, detail) VALUES ($1, $2, $3, $4)`,
+        [
+          req.adminUser ? req.adminUser.name : 'ADMIN_HO',
+          'UPDATE_PROGRAM_CONFIG',
+          `program:${programId}`,
+          JSON.stringify({ barcode: cleanBarcode, itemCode: cleanItemCode, voucher5k: cleanV5k, voucher10k: cleanV10k })
+        ]
+      );
+
+      await client.query('COMMIT');
+      return res.json({ ok: true, message: 'Đã cập nhật cấu hình chương trình thành công!', program: updatedProg.rows[0] });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/api/admin/detailed-reports', adminAuth, async (req, res) => {
   try {
     const client = await pool.connect();
@@ -1352,6 +1408,14 @@ app.post('/api/webhook/pos-events', async (req, res) => {
     const isPaidStatus = finStatus === 'paid' || fulfillStatus === 'fulfilled' || payload.send_paid === true || payload.status === 'completed';
     const isCancelled = payload.cancelled_at || payload.cancel_reason || finStatus === 'voided' || finStatus === 'refunded' || eventType.includes('cancelled') || eventType.includes('voided');
 
+    // Lấy chương trình đang active để lấy cấu hình barcode và voucher động
+    const progResGlobal = await client.query('SELECT * FROM programs WHERE status = $1 ORDER BY id DESC LIMIT 1', ['active']);
+    const activeProg = progResGlobal.rows[0] || null;
+    const targetBarcode = String(activeProg?.barcode || '2025041800002').trim().toUpperCase();
+    const targetItemCode = String(activeProg?.item_code || targetBarcode).trim().toUpperCase();
+    const targetVoucher5k = String(activeProg?.voucher_5k || 'DAILY5K').trim().toUpperCase();
+    const targetVoucher10k = String(activeProg?.voucher_10k || 'DAILY10K').trim().toUpperCase();
+
     if (rawPhone && isCancelled) {
       let cleanPhone = String(rawPhone).trim().replace(/\s+/g, '').replace(/^(\+84|84)/, '0');
       const isValidVnPhone = /^0(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone);
@@ -1361,16 +1425,15 @@ app.post('/api/webhook/pos-events', async (req, res) => {
         if (custRes.rows.length > 0) {
           const custId = custRes.rows[0].id;
 
-          // TH1: HỦY ĐƠN MUA THẺ (Có chứa barcode/sku thẻ NBT hoặc gắn order_no mua thẻ)
+          // TH1: HỦY ĐƠN MUA THẺ (Khớp đúng barcode hoặc item_code cấu hình)
           const cardItem = items.find(it => {
             const barcode = String(it.barcode || '').trim().toUpperCase();
             const sku = String(it.sku || it.item_code || it.product_code || '').trim().toUpperCase();
             const name = String(it.name || it.title || it.product_name || '').toUpperCase();
-            return barcode === '2025041800002' || sku === '2025041800002' ||
-                   barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
-                   barcode === '8936000000018' || sku === 'SP_NBT_XUANTHUY' ||
-                   name.includes('2025041800002') || name.includes('RTD.TP00013') || 
-                   name.includes('SAKUKO DAILY') || name.includes('THẺ NBT') || name.includes('THẺ TRÀ');
+            return barcode === targetBarcode || sku === targetBarcode ||
+                   barcode === targetItemCode || sku === targetItemCode ||
+                   barcode === '2025041800002' || sku === '2025041800002' ||
+                   name.includes(targetBarcode) || name.includes('SAKUKO DAILY') || name.includes('THẺ NBT');
           });
 
           if (cardItem || orderNo) {
@@ -1466,23 +1529,17 @@ app.post('/api/webhook/pos-events', async (req, res) => {
         custId = custRes.rows[0].id;
       }
 
-      // Lấy chương trình đang active
-      const progRes = await client.query('SELECT * FROM programs WHERE status = $1 LIMIT 1', ['active']);
-      const activeProg = progRes.rows[0];
-
-      // CASE 1: KIỂM TRA ĐƠN HÀNG CÓ MÃ BARCODE RTD.TP00013 -> KÍCH HOẠT THẺ
-      // Điều kiện: Đơn phải ở trạng thái đã thanh toán / hoàn thành (isPaidStatus hoặc isPaidEvent)
-      const isEligibleToActivate = isPaidStatus || isPaidEvent || !payload.financial_status; // fallback nếu pos không gửi financial_status
+      // CASE 1: KIỂM TRA ĐƠN HÀNG CÓ MÃ BARCODE THẺ (Khớp đúng cấu hình) -> KÍCH HOẠT THẺ
+      const isEligibleToActivate = isPaidStatus || isPaidEvent || !payload.financial_status;
 
       const cardItem = items.find(it => {
         const barcode = String(it.barcode || '').trim().toUpperCase();
         const sku = String(it.sku || it.item_code || it.product_code || '').trim().toUpperCase();
         const name = String(it.name || it.title || it.product_name || '').toUpperCase();
-        return barcode === '2025041800002' || sku === '2025041800002' ||
-               barcode === 'RTD.TP00013' || sku === 'RTD.TP00013' ||
-               barcode === '8936000000018' || sku === 'SP_NBT_XUANTHUY' ||
-               name.includes('2025041800002') || name.includes('RTD.TP00013') || 
-               name.includes('SAKUKO DAILY') || name.includes('THẺ NBT') || name.includes('THẺ TRÀ');
+        return barcode === targetBarcode || sku === targetBarcode ||
+               barcode === targetItemCode || sku === targetItemCode ||
+               barcode === '2025041800002' || sku === '2025041800002' ||
+               name.includes(targetBarcode) || name.includes('SAKUKO DAILY') || name.includes('THẺ NBT');
       });
 
       if (cardItem) {
@@ -1523,12 +1580,13 @@ app.post('/api/webhook/pos-events', async (req, res) => {
       let matchedVoucherCode = null;
       let voucherDiscountAmount = 0;
 
-      // Tìm trong discount_codes
+      // Tìm trong discount_codes (khớp mã voucher 5k hoặc 10k theo cấu hình)
       for (const d of discounts) {
         const code = String(d.code || d.voucher_code || d.name || '').trim().toUpperCase();
-        if (code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT')) {
+        if (code.includes(targetVoucher5k) || code.includes(targetVoucher10k) || code.includes('DAILY5K') || code.includes('DAILY10K') || code.includes('NBT')) {
           matchedVoucherCode = code;
-          voucherDiscountAmount = Number(d.amount || (code.includes('10K') ? 10000 : 5000));
+          const isBig = code.includes(targetVoucher10k) || code.includes('10K');
+          voucherDiscountAmount = Number(d.amount || (isBig ? 10000 : 5000));
           break;
         }
       }
@@ -1669,12 +1727,18 @@ async function autoSyncHaravanOrders() {
           if (userRes.rows.length > 0) {
             const custId = userRes.rows[0].id;
             
-            // TH1: HỦY ĐƠN MUA THẺ
+            const syncBarcode = String(activeProg?.barcode || '2025041800002').trim().toUpperCase();
+        const syncItemCode = String(activeProg?.item_code || syncBarcode).trim().toUpperCase();
+        const syncV5k = String(activeProg?.voucher_5k || 'DAILY5K').trim().toUpperCase();
+        const syncV10k = String(activeProg?.voucher_10k || 'DAILY10K').trim().toUpperCase();
+
+        // TH1: HỦY ĐƠN MUA THẺ
             const cardItem = lineItems.find(item => {
-              const barcode = String(item.barcode || '').trim();
-              const sku = String(item.sku || '').trim();
-              return barcode === '2025041800002' || barcode === 'RTD.TP00013' ||
-                     sku === '2025041800002' || sku === 'RTD.TP00013';
+              const barcode = String(item.barcode || '').trim().toUpperCase();
+              const sku = String(item.sku || '').trim().toUpperCase();
+              return barcode === syncBarcode || sku === syncBarcode ||
+                     barcode === syncItemCode || sku === syncItemCode ||
+                     barcode === '2025041800002' || sku === '2025041800002';
             });
             if (cardItem || orderNo) {
               const cancelCard = await client.query(
@@ -1707,10 +1771,11 @@ async function autoSyncHaravanOrders() {
         if (!isEligible) continue;
 
         const cardItem = lineItems.find(item => {
-          const barcode = String(item.barcode || '').trim();
-          const sku = String(item.sku || '').trim();
-          return barcode === '2025041800002' || barcode === 'RTD.TP00013' ||
-                 sku === '2025041800002' || sku === 'RTD.TP00013';
+          const barcode = String(item.barcode || '').trim().toUpperCase();
+          const sku = String(item.sku || '').trim().toUpperCase();
+          return barcode === syncBarcode || sku === syncBarcode ||
+                 barcode === syncItemCode || sku === syncItemCode ||
+                 barcode === '2025041800002' || sku === '2025041800002';
         });
 
         const storeCode = (order.location_name && order.location_name.includes('Xuân Thủy')) ? 'XT' : (order.location_name || 'POS');
@@ -1758,9 +1823,10 @@ async function autoSyncHaravanOrders() {
         let vDiscount = 0;
         for (const d of discounts) {
           const c = String(d.code || d.name || '').trim().toUpperCase();
-          if (c.includes('DAILY5K') || c.includes('DAILY10K') || c.includes('NBT')) {
+          if (c.includes(syncV5k) || c.includes(syncV10k) || c.includes('DAILY5K') || c.includes('DAILY10K') || c.includes('NBT')) {
             matchedVoucher = c;
-            vDiscount = Number(d.amount || (c.includes('10K') ? 10000 : 5000));
+            const isBig = c.includes(syncV10k) || c.includes('10K');
+            vDiscount = Number(d.amount || (isBig ? 10000 : 5000));
             break;
           }
         }

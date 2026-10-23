@@ -963,26 +963,114 @@
       });
     }
 
+    
+    async function handleSaveProgramConfig(event, progId) {
+      event.preventDefault();
+      const msgEl = document.getElementById(`cfg_msg_${progId}`);
+      if (msgEl) {
+        msgEl.className = 'text-[11px] font-semibold text-indigo-600';
+        msgEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang lưu cấu hình...';
+      }
+
+      const barcode = document.getElementById(`cfg_barcode_${progId}`).value;
+      const itemCode = document.getElementById(`cfg_itemcode_${progId}`).value;
+      const voucher5k = document.getElementById(`cfg_v5k_${progId}`).value;
+      const voucher10k = document.getElementById(`cfg_v10k_${progId}`).value;
+
+      try {
+        const res = await fetch('/api/admin/programs/update-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ programId: progId, barcode, itemCode, voucher5k, voucher10k })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-emerald-600';
+            msgEl.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Đã lưu thành công!';
+            setTimeout(() => { msgEl.innerHTML = ''; }, 3000);
+          }
+          loadOverviewData();
+        } else {
+          if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-rose-600';
+            msgEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Lỗi: ${data.error}`;
+          }
+        }
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = 'text-[11px] font-semibold text-rose-600';
+          msgEl.innerHTML = 'Lỗi kết nối máy chủ!';
+        }
+      }
+    }
+
     function renderProgramsAndStores(programs, stores) {
       const pContainer = document.getElementById('programsListContainer');
       pContainer.innerHTML = '';
       if (programs) {
         programs.forEach(p => {
           const div = document.createElement('div');
-          div.className = 'p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs';
+          div.className = 'p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 text-xs';
           div.innerHTML = `
-            <div class="flex justify-between items-center">
-              <h4 class="font-bold text-slate-900 text-sm">${p.name}</h4>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase">${p.status}</span>
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+              <div>
+                <h4 class="font-black text-slate-900 text-sm">${p.name}</h4>
+                <p class="text-slate-500 text-[11px] mt-0.5">${p.description || ''}</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider">${p.status}</span>
             </div>
-            <p class="text-slate-600">${p.description}</p>
-            <div class="grid grid-cols-3 gap-2 pt-1 font-mono text-[11px] text-slate-700">
-              <div>Giá thẻ: <span class="font-bold">${Number(p.card_price).toLocaleString()}đ</span></div>
-              <div>Mã hàng: <span class="font-bold">${p.item_code}</span></div>
-              <div>Barcode: <span class="font-bold">${p.barcode}</span></div>
-              <div>Voucher 5K: <span class="font-bold text-rose-600">${p.voucher_5k}</span></div>
-              <div>Voucher 10K: <span class="font-bold text-rose-600">${p.voucher_10k}</span></div>
-              <div>AOV tối thiểu: <span class="font-bold">${Number(p.aov_min).toLocaleString()}đ</span></div>
+
+            <form onsubmit="handleSaveProgramConfig(event, ${p.id})" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-200">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Mã Barcode Thẻ (Kích hoạt tự động):</label>
+                <div class="relative">
+                  <i class="fa-solid fa-barcode absolute left-3 top-2.5 text-slate-400"></i>
+                  <input type="text" id="cfg_barcode_${p.id}" value="${p.barcode || '2025041800002'}" required
+                    class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">Đơn Haravan chứa barcode này sẽ kích hoạt thẻ</p>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Mã SKU / Item Code Thẻ:</label>
+                <input type="text" id="cfg_itemcode_${p.id}" value="${p.item_code || '2025041800002'}"
+                  class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <p class="text-[10px] text-slate-400 mt-1">Khớp phụ trợ SKU sản phẩm Haravan</p>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Mã Voucher 5.000đ (Lượt thường):</label>
+                <div class="relative">
+                  <i class="fa-solid fa-ticket absolute left-3 top-2.5 text-emerald-500"></i>
+                  <input type="text" id="cfg_v5k_${p.id}" value="${p.voucher_5k || 'DAILY5K'}" required
+                    class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none uppercase" />
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">Mã giảm 5K (Lượt 1-4, 6-9)</p>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Mã Voucher 10.000đ (Mốc đặc biệt):</label>
+                <div class="relative">
+                  <i class="fa-solid fa-gift absolute left-3 top-2.5 text-rose-500"></i>
+                  <input type="text" id="cfg_v10k_${p.id}" value="${p.voucher_10k || 'DAILY10K'}" required
+                    class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none uppercase" />
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">Mã giảm 10K (Lượt 5 và Lượt 10)</p>
+              </div>
+
+              <div class="col-span-1 md:col-span-2 flex items-center justify-between pt-2 border-t border-slate-100">
+                <span id="cfg_msg_${p.id}" class="text-[11px] font-semibold text-slate-500"></span>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-sm transition flex items-center">
+                  <i class="fa-solid fa-floppy-disk mr-1.5"></i> Lưu Thiết Lập Mã & Barcode
+                </button>
+              </div>
+            </form>
+
+            <div class="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px] text-slate-600">
+              <div>Giá bán thẻ: <span class="font-bold text-slate-900">${Number(p.card_price).toLocaleString()}đ</span></div>
+              <div>Hóa đơn tối thiểu (AOV): <span class="font-bold text-slate-900">${Number(p.aov_min).toLocaleString()}đ</span></div>
             </div>
           `;
           pContainer.appendChild(div);
