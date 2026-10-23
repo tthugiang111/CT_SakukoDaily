@@ -1468,3 +1468,105 @@ app.get('*', (req, res) => {
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Web Thẻ NBT service is running at http://127.0.0.1:${PORT}`);
 });
+
+
+// ĐỒNG BỘ DỰ PHÒNG TỰ ĐỘNG HARAVAN (QUÉT MỖI 15S ĐẢM BẢO REALTIME KỂ CẢ KHI HARAVAN NGHẼN HOẶC TRỄ WEBHOOK)
+const HARAVAN_PRIVATE_TOKEN = '596EE140311D1CC2AE8A1C6DF8E9E4E7F5F0A2D53B7A49C414F23069BDF58434';
+let isSyncingHaravan = false;
+
+async function autoSyncHaravanOrders() {
+  if (isSyncingHaravan) return;
+  isSyncingHaravan = true;
+  try {
+    const url = 'https://apis.haravan.com/com/orders.json?limit=15';
+    const resp = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${HARAVAN_PRIVATE_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const orders = data.orders || [];
+
+    const client = await pool.connect();
+    try {
+      await client.query('SET search_path TO the_nbt;');
+      const progRes = await client.query("SELECT * FROM programs WHERE status = 'active' ORDER BY id DESC LIMIT 1;");
+      const activeProg = progRes.rows[0] || null;
+
+      for (const order of orders) {
+        const finStatus = (order.financial_status || '').toLowerCase();
+        const fulfillStatus = (order.fulfillment_status || '').toLowerCase();
+        const isEligible = finStatus === 'paid' || fulfillStatus === 'fulfilled';
+        if (!isEligible) continue;
+
+        let phone = (order.billing_address && order.billing_address.phone) ||
+                    (order.customer && order.customer.phone) ||
+                    (order.shipping_address && order.shipping_address.phone);
+        if (!phone) continue;
+        phone = phone.trim().replace(/^(\+84|84)/, '0');
+        if (!/^0\d{9}$/.test(phone)) continue;
+
+        const lineItems = order.line_items || [];
+        const cardItem = lineItems.find(item => {
+          const barcode = String(item.barcode || '').trim();
+          const sku = String(item.sku || '').trim();
+          return barcode === '2025041800002' || barcode === 'RTD.TP00013' ||
+                 sku === '2025041800002' || sku === 'RTD.TP00013';
+        });
+        if (!cardItem) continue;
+
+        const orderNo = order.order_number || order.name || String(order.id);
+        const storeCode = (order.location_name && order.location_name.includes('Xuân Thủy')) ? 'XT' : (order.location_name || 'POS');
+
+        // Check customer
+        let userRes = await client.query('SELECT * FROM customers WHERE phone = $1', [phone]);
+        let custId;
+        if (userRes.rows.length === 0) {
+          const dummyPinHash = await bcrypt.hash('123456', 10);
+          const dummyRecHash = await bcrypt.hash('SAKUKO' + Math.floor(Math.random() * 899999 + 100000), 10);
+          const newCust = await client.query(
+            `INSERT INTO customers (phone, pin_hash, recovery_code_hash, status)
+             VALUES ($1, $2, $3, 'active') RETURNING id`,
+            [phone, dummyPinHash, dummyRecHash]
+          );
+          custId = newCust.rows[0].id;
+        } else {
+          custId = userRes.rows[0].id;
+        }
+
+        // Check if card exists for this order
+        const checkOrderCard = await client.query(
+          `SELECT id FROM cards WHERE customer_id = $1 AND (order_no = $2 OR status IN ('active', 'pending_active'))`,
+          [custId, orderNo]
+        );
+
+        if (checkOrderCard.rows.length === 0) {
+          const usableFromStr = new Date().toISOString().split('T')[0];
+          const progId = activeProg ? activeProg.id : 1;
+          const newCard = await client.query(
+            `INSERT INTO cards (customer_id, program_id, store_code, usable_from, status, uses_count, order_no, created_at)
+             VALUES ($1, $2, $3, $4, 'active', 0, $5, NOW()) RETURNING id`,
+            [custId, progId, storeCode, usableFromStr, orderNo]
+          );
+          await client.query(
+            `INSERT INTO audit_log (action, details) VALUES ('AUTO_SYNC_BUY_CARD', $1)`,
+            [JSON.stringify({ phone, order_no: orderNo, card_id: newCard.rows[0].id, store_code: storeCode })]
+          );
+          console.log(`[REALTIME SYNC ACTIVATED] SĐT: ${phone}, Đơn: ${orderNo}`);
+        }
+      }
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    // Silent
+  } finally {
+    isSyncingHaravan = false;
+  }
+}
+
+// Chạy tự động quét mỗi 15 giây
+setInterval(autoSyncHaravanOrders, 15000);
+setTimeout(autoSyncHaravanOrders, 2000);
