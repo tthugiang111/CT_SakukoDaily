@@ -593,7 +593,7 @@
       grid.innerHTML = '';
 
       const usesCount = Number(card.uses_count || 0);
-      const activeStep = usesCount + 1; // Lượt kế tiếp cần dùng
+      const activeStep = usesCount + 1; // Lượt tiếp theo
 
       for (let i = 1; i <= 10; i++) {
         const isUsed = i <= usesCount;
@@ -605,26 +605,39 @@
         btn.type = 'button';
 
         if (isUsed) {
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/40 text-white/50 border border-white/10 opacity-60 cursor-pointer hover:opacity-80 transition';
+          // Voucher đã dùng: tắt đi, mờ, không mở lại
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-black/40 text-white/40 border border-white/5 opacity-50 cursor-not-allowed';
+          btn.disabled = true;
           btn.innerHTML = `
-            <span class="line-through">#${i}</span>
-            <span class="text-[9px]"><i class="fa-solid fa-check text-emerald-400"></i> Đã dùng</span>
+            <span class="line-through text-slate-400">#${i}</span>
+            <span class="text-[9px] text-emerald-400/90 font-semibold"><i class="fa-solid fa-check"></i> Đã dùng</span>
           `;
-          btn.onclick = () => alert(`Lượt #${i} (${discountLabel}) đã được sử dụng thành công!`);
         } else if (isCurrentActive) {
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-black text-xs bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/40 border-2 border-white scale-105 animate-pulse cursor-pointer';
-          btn.innerHTML = `
-            <span class="text-sm">#${i}</span>
-            <span class="text-[10px] font-extrabold uppercase bg-rose-600 text-white px-1.5 py-0.2 rounded-full mt-0.5">Mở ${discountLabel}</span>
-          `;
-          btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
+          if (usedToday) {
+            // Hôm nay đã dùng 1 voucher rồi: mỗi ngày chỉ 1 lần -> khóa lại hẹn ngày mai
+            btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-slate-800/80 text-amber-200/70 border border-amber-400/30 cursor-not-allowed';
+            btn.innerHTML = `
+              <span class="text-xs">#${i}</span>
+              <span class="text-[9px] text-amber-300 font-medium"><i class="fa-solid fa-lock text-[8px]"></i> Hẹn mai</span>
+            `;
+            btn.onclick = () => alert('Mỗi ngày chỉ được dùng 1 voucher! Bạn đã dùng ưu đãi hôm nay rồi, vui lòng quay lại vào ngày mai.');
+          } else {
+            // Ô voucher hôm nay sẵn sàng dùng
+            btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-black text-xs bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/40 border-2 border-white scale-105 animate-pulse cursor-pointer hover:bg-amber-300 transition';
+            btn.innerHTML = `
+              <span class="text-sm">#${i}</span>
+              <span class="text-[10px] font-extrabold uppercase bg-rose-600 text-white px-1.5 py-0.2 rounded-full mt-0.5">Dùng ngay</span>
+            `;
+            btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
+          }
         } else {
-          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/15 text-white/90 border border-white/20 hover:bg-white/30 active:scale-95 transition cursor-pointer';
+          // Các ô voucher tương lai (chưa đến lượt)
+          btn.className = 'h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs bg-white/10 text-white/60 border border-white/10 cursor-not-allowed';
+          btn.disabled = true;
           btn.innerHTML = `
             <span>#${i}</span>
-            <span class="text-[9px] text-amber-200 font-extrabold">${discountLabel}</span>
+            <span class="text-[9px] text-slate-300">${discountLabel}</span>
           `;
-          btn.onclick = () => openVoucherModal(i, isBig ? 10000 : 5000);
         }
 
         grid.appendChild(btn);
@@ -659,7 +672,7 @@
           lineColor: '#0f172a',
           width: 2,
           height: 50,
-          displayValue: true,
+          displayValue: false,
           text: fakeBarcode
         });
       } catch (err) {
@@ -971,7 +984,7 @@
           <span id="voucherModalCountdown" class="text-[#E0376F] font-mono font-bold">Còn --h--m</span>
         </div>
 
-        <div class="font-mono text-xl font-black text-slate-900 tracking-widest pt-1" id="voucherModalCodeText">DAILY5K-01</div>
+        <div class="hidden" id="voucherModalCodeText"></div>
         <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-center items-center shadow-inner">
           <svg id="voucherModalBarcodeSvg" class="w-full max-h-20"></svg>
         </div>
