@@ -1914,6 +1914,6 @@ async function autoSyncHaravanOrders() {
   }
 }
 
-// Chạy tự động quét mỗi 15 giây
-setInterval(autoSyncHaravanOrders, 15000);
-setTimeout(autoSyncHaravanOrders, 2000);
+// [DISABLED] Tắt hoàn toàn việc tự động SYNC định kỳ theo yêu cầu - Chỉ nhận event qua Webhook Haravan
+// setInterval(autoSyncHaravanOrders, 15000);
+// setTimeout(autoSyncHaravanOrders, 2000);
