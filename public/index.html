@@ -404,12 +404,41 @@
         `;
 
         renderCardAndVoucher(data);
-        renderProgramsList(data.programs || (data.activeProgram ? [data.activeProgram] : []), data.currentCard);
+        renderProgramsList(data.programs || (data.activeProgram ? [data.activeProgram] : []), data.currentCard, data.hasCompletedAllUses);
+        
+        // Nếu khách vừa hoàn thành hết 10 lượt và chưa có thẻ mới -> Hiển thị popup Chúc Mừng
+        if (data.hasCompletedAllUses) {
+          const shownKey = `congrats_shown_${currentCustomer.id}_${data.lastCompletedCard?.id}`;
+          if (!sessionStorage.getItem(shownKey)) {
+            openCongratsModal();
+            sessionStorage.setItem(shownKey, 'true');
+          }
+        }
         // Tự động load dữ liệu cho các tab
         loadWalletData();
         loadHistoryData();
       } catch (e) {
         console.error(e);
+      }
+    }
+
+    
+    function openCongratsModal() {
+      const m = document.getElementById('congratsCompletedModal');
+      if (m) m.classList.remove('hidden');
+    }
+
+    function closeCongratsModal() {
+      const m = document.getElementById('congratsCompletedModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    function handleDirectBuyNewCard() {
+      closeCongratsModal();
+      if (availablePrograms && availablePrograms.length > 0) {
+        handleBuyCard(availablePrograms[0].id);
+      } else {
+        openBuyModal();
       }
     }
 
@@ -899,7 +928,7 @@
       }
     }
 
-    function renderProgramsList(programs, cardObj) {
+    function renderProgramsList(programs, cardObj, hasCompletedAllUses) {
       const container = document.getElementById('customerProgramsList');
       if (!container) return;
       container.innerHTML = '';
@@ -910,7 +939,7 @@
         return;
       }
 
-      // Kiểm tra chắc chắn khách đang có thẻ active
+      // Kiểm tra khách đang có thẻ active còn lượt
       const hasActiveCard = !!(cardObj || currentCard);
       const activeCardData = cardObj || currentCard;
 
@@ -962,8 +991,9 @@
                 ? `<div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center shadow-sm">
                     <i class="fa-solid fa-circle-check mr-1.5 text-emerald-600"></i> Bạn đang sở hữu thẻ này (Còn ${remainingUses} lượt ưu đãi)
                   </div>`
-                : `<button onclick="handleBuyCard(${p.id})" class="w-full py-2.5 rounded-xl sakuko-primary-gradient text-white font-bold text-xs shadow-md shadow-[#E0376F]/20 active:scale-[0.98] transition flex items-center justify-center">
-                    <i class="fa-solid fa-cart-shopping mr-1.5"></i> Mua Thẻ Ngay (${cardPriceFormatted})
+                : `<button onclick="handleBuyCard(${p.id})" class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-black text-xs shadow-lg shadow-[#E0376F]/30 hover:brightness-105 active:scale-[0.98] transition flex items-center justify-center space-x-2 ring-4 ring-[#E0376F]/20 animate-pulse">
+                    <i class="fa-solid fa-sparkles text-amber-300"></i>
+                    <span>${hasCompletedAllUses ? 'MUA THẺ MỚI NGAY (HẠN 60 NGÀY)' : 'MUA THẺ NGAY (' + cardPriceFormatted + ')'}</span>
                   </button>`
               }
             </div>
@@ -1043,6 +1073,43 @@
         </button>
         <button onclick="closeVoucherModal()" class="w-full py-2 rounded-xl text-slate-400 hover:text-slate-600 font-semibold text-xs">
           Đóng lại
+        </button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- MODAL CHÚC MỪNG HOÀN THÀNH 10 LƯỢT VOUCHER & MỜI MUA THẺ MỚI -->
+  <div id="congratsCompletedModal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-clean w-full max-w-sm rounded-3xl p-6 bg-white border border-slate-200 shadow-2xl space-y-5 text-center animate-bounce-short">
+      <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-white text-3xl shadow-lg shadow-rose-500/30">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      
+      <div class="space-y-2">
+        <span class="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-100 text-[#C82B5F]">CHÚC MỪNG BẠN!</span>
+        <h3 class="text-lg font-black text-slate-900 leading-tight">Bạn Đã Sử Dụng Hết 10 Lượt Ưu Đãi!</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Cảm ơn bạn đã đồng hành cùng <b class="text-slate-900">Sakuko Daily</b>. Toàn bộ lịch sử các lần dùng ưu đãi đã được lưu lại trong ví của bạn.
+        </p>
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-gradient-to-r from-rose-50 to-amber-50 border border-rose-200/80 text-left space-y-1.5">
+        <div class="flex items-center text-xs font-bold text-[#C82B5F]">
+          <i class="fa-solid fa-gift mr-1.5"></i> Tiếp tục tiết kiệm cùng chu kỳ mới:
+        </div>
+        <p class="text-[11px] text-slate-600 leading-snug">
+          Mua ngay thẻ mới để nhận tiếp <b>10 lượt voucher giảm giá</b> (Hạn sử dụng thẻ mới là <b>60 ngày</b> kể từ khi kích hoạt).
+        </p>
+      </div>
+
+      <div class="space-y-2.5 pt-1">
+        <button onclick="handleDirectBuyNewCard()" class="w-full py-3.5 rounded-2xl sakuko-primary-gradient text-white font-black text-sm shadow-lg shadow-[#E0376F]/30 active:scale-[0.98] transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>Mua Thẻ Mới Ngay (Hạn 60 Ngày)</span>
+        </button>
+        <button onclick="closeCongratsModal()" class="w-full py-2.5 rounded-xl text-slate-400 hover:text-slate-600 font-bold text-xs">
+          Để sau, tôi muốn xem lịch sử
         </button>
       </div>
     </div>

@@ -377,14 +377,41 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
       const progRes = await client.query(`SELECT * FROM programs WHERE status = 'active' ORDER BY id DESC LIMIT 1`);
       const activeProgram = progRes.rows[0] || null;
 
-      const cardRes = await client.query(
+      // Lấy thẻ active/pending_active mới nhất chưa dùng hết 10 lượt
+      let cardRes = await client.query(
         `SELECT c.*, p.name as program_name, p.end_date, p.stop_sale_date, p.voucher_5k, p.voucher_10k, p.aov_min
          FROM cards c
          JOIN programs p ON c.program_id = p.id
-         WHERE c.customer_id = $1 AND c.status IN ('active', 'pending_active', 'expired')
+         WHERE c.customer_id = $1 AND c.status IN ('active', 'pending_active') AND c.uses_count < 10
          ORDER BY c.id DESC LIMIT 1`,
         [custId]
       );
+
+      // Nếu không có thẻ active còn lượt, kiểm tra xem có thẻ vừa dùng hết 10 lượt (used_up) hoặc thẻ expired không
+      let lastCompletedCard = null;
+      if (cardRes.rows.length === 0) {
+        const completedRes = await client.query(
+          `SELECT c.*, p.name as program_name, p.end_date, p.stop_sale_date, p.voucher_5k, p.voucher_10k, p.aov_min
+           FROM cards c
+           JOIN programs p ON c.program_id = p.id
+           WHERE c.customer_id = $1 AND (c.status = 'used_up' OR c.uses_count >= 10)
+           ORDER BY c.id DESC LIMIT 1`,
+          [custId]
+        );
+        if (completedRes.rows.length > 0) {
+          lastCompletedCard = completedRes.rows[0];
+        } else {
+          // Thử lấy thẻ expired nếu có
+          cardRes = await client.query(
+            `SELECT c.*, p.name as program_name, p.end_date, p.stop_sale_date, p.voucher_5k, p.voucher_10k, p.aov_min
+             FROM cards c
+             JOIN programs p ON c.program_id = p.id
+             WHERE c.customer_id = $1 AND c.status = 'expired'
+             ORDER BY c.id DESC LIMIT 1`,
+            [custId]
+          );
+        }
+      }
 
       const currentCard = cardRes.rows[0] || null;
       let usedToday = false;
@@ -433,6 +460,8 @@ app.get('/api/customer/me', customerAuth, async (req, res) => {
         activeProgram,
         programs: allProgsRes.rows,
         currentCard,
+        lastCompletedCard,
+        hasCompletedAllUses: !!(lastCompletedCard && !currentCard),
         usedToday,
         nextVoucher
       });
@@ -505,7 +534,7 @@ app.post('/api/customer/buy-card', customerAuth, async (req, res) => {
     const client = await pool.connect();
     try {
       const checkCard = await client.query(
-        `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active')`,
+        `SELECT id FROM cards WHERE customer_id = $1 AND status IN ('active', 'pending_active') AND uses_count < 10`,
         [custId]
       );
       if (checkCard.rows.length > 0) {
